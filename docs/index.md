@@ -19,13 +19,21 @@ Awesome general_navigation created by AdityaNG.
 pip install general_navigation
 ```
 
+If you want to connect with the Carla simulator, you will also need to seperately install carla
+```bash
+pip install carla==0.9.15  # Linux and Windows
+pip install carla==0.9.5  # Linux and Windows
+```
+
 ## Usage
 
 [Documentation Link](https://adityang.github.io/general-navigation/)
 
 Creating a pytorch instance of the model
 ```py
-from .models.factory import get_default_config, get_model, get_weights
+from general_navigation.models.factory import (
+  get_default_config, get_model, get_weights
+)
 
 config = get_default_config()
 model = get_model(config)
