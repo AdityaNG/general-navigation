@@ -4,6 +4,12 @@ Changelog
 
 (unreleased)
 ------------
+- Fix(documentation): demo url fix. [Aditya NG]
+
+
+0.1.0 (2024-05-15)
+------------------
+- Release: version 0.1.0 🚀 [Aditya NG]
 - Fix(linting): added exclusion. [Aditya NG]
 - Feat(demo): video added. [Aditya NG]
 - Merge pull request #1 from
