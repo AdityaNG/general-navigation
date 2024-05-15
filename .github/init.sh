@@ -32,7 +32,7 @@ function download_template {
 }
 
 echo "Using template:${template}"
-template_url="https://github.com/rochacbruno/${template}-project-template"
+template_url="https://github.com/AdityaNG/${template}-project-template"
 template_dir=".github/templates/${template}"
 if [ -d "${template_dir}" ]; then
     # Template directory already exists
