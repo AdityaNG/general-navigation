@@ -4,6 +4,12 @@ Changelog
 
 (unreleased)
 ------------
+- Fix(requirements.txt): relaxed carla requirement. [Aditya NG]
+
+
+0.3.0 (2024-05-15)
+------------------
+- Release: version 0.3.0 🚀 [Aditya NG]
 - Feat(general_navigation/mpc.py): mpc functionality and connect to
   carla. [Aditya NG]
 - Feat(carla): connecting to carla. [Aditya NG]
