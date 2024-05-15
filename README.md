@@ -71,4 +71,3 @@ Read the [CONTRIBUTING.md](CONTRIBUTING.md) file.
 
 - [visualnav-transformer](https://github.com/robodhruv/visualnav-transformer)
 - [diffusion_policy](https://github.com/real-stanford/diffusion_policy)
-- [x] Documentation: `mkdocs gh-deploy`
