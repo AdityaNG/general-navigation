@@ -4,6 +4,14 @@ Changelog
 
 (unreleased)
 ------------
+- Feat(general_navigation/mpc.py): mpc functionality and connect to
+  carla. [Aditya NG]
+- Feat(carla): connecting to carla. [Aditya NG]
+
+
+0.2.2 (2024-05-15)
+------------------
+- Release: version 0.2.2 🚀 [Aditya NG]
 - Docs(README): usage instructions. [Aditya NG]
 - Release: version 0.2.1 🚀 [Aditya NG]
 - Fix(requirements.txt): dependencies. [Aditya NG]
