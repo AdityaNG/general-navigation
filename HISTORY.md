@@ -4,6 +4,13 @@ Changelog
 
 (unreleased)
 ------------
+- Fix(manifest): added config yamls. [Aditya NG]
+- Fix(init): files added to ensure correct installation. [Aditya NG]
+
+
+0.1.1 (2024-05-15)
+------------------
+- Release: version 0.1.1 🚀 [Aditya NG]
 - Fix(documentation): demo url fix. [Aditya NG]
 
 
