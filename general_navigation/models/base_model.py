@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional, Tuple
+from typing import Optional, Tuple
 
 import torch
 import torch.nn as nn
@@ -14,7 +14,8 @@ class BaseModel(nn.Module):
         """
         Base Model main class
         Args:
-            context_size (int): how many previous observations to used for context
+            context_size (int): how many previous observations to used for \
+                context
             len_traj_pred (int): how many waypoints to predict in the future
             learn_angle (bool): whether to predict the yaw of the robot
         """

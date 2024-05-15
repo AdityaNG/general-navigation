@@ -1,4 +1,3 @@
-import itertools
 import os
 from typing import List
 
@@ -7,23 +6,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import torchvision.transforms.functional as TF
-import tqdm
 import wandb
 import yaml
 from diffusers.schedulers.scheduling_ddpm import DDPMScheduler
-from diffusers.training_utils import EMAModel
 from PIL import Image as PILImage
-from torch.optim import Adam
-from torch.utils.data import DataLoader
 from torchvision import transforms
 
-from general_navigation.visualizing.action_utils import (
-    plot_trajs_and_points,
-    visualize_traj_pred,
-)
-from general_navigation.visualizing.distance_utils import visualize_dist_pred
+from general_navigation.visualizing.action_utils import plot_trajs_and_points
 from general_navigation.visualizing.visualize_utils import from_numpy, to_numpy
 
 VISUALIZATION_IMAGE_SIZE = (160, 120)
@@ -38,257 +28,6 @@ with open(
 ACTION_STATS = {}
 for key in data_config["action_stats"]:
     ACTION_STATS[key] = np.array(data_config["action_stats"][key])
-
-
-# Train utils for ViNT and GNM
-def _compute_losses(
-    dist_label: torch.Tensor,
-    action_label: torch.Tensor,
-    dist_pred: torch.Tensor,
-    action_pred: torch.Tensor,
-    alpha: float,
-    learn_angle: bool,
-    action_mask: torch.Tensor = None,
-):
-    """
-    Compute losses for distance and action prediction.
-
-    """
-    dist_loss = F.mse_loss(dist_pred.squeeze(-1), dist_label.float())
-
-    def action_reduce(unreduced_loss: torch.Tensor):
-        # Reduce over non-batch dimensions to get loss per batch element
-        while unreduced_loss.dim() > 1:
-            unreduced_loss = unreduced_loss.mean(dim=-1)
-        assert (
-            unreduced_loss.shape == action_mask.shape
-        ), f"{unreduced_loss.shape} != {action_mask.shape}"
-        return (unreduced_loss * action_mask).mean() / (
-            action_mask.mean() + 1e-2
-        )
-
-    # Mask out invalid inputs (for negatives, or when the distance between obs and goal is large)
-    assert (
-        action_pred.shape == action_label.shape
-    ), f"{action_pred.shape} != {action_label.shape}"
-    action_loss = action_reduce(
-        F.mse_loss(action_pred, action_label, reduction="none")
-    )
-
-    action_waypts_cos_similairity = action_reduce(
-        F.cosine_similarity(
-            action_pred[:, :, :2], action_label[:, :, :2], dim=-1
-        )
-    )
-    multi_action_waypts_cos_sim = action_reduce(
-        F.cosine_similarity(
-            torch.flatten(action_pred[:, :, :2], start_dim=1),
-            torch.flatten(action_label[:, :, :2], start_dim=1),
-            dim=-1,
-        )
-    )
-
-    results = {
-        "dist_loss": dist_loss,
-        "action_loss": action_loss,
-        "action_waypts_cos_sim": action_waypts_cos_similairity,
-        "multi_action_waypts_cos_sim": multi_action_waypts_cos_sim,
-    }
-
-    if learn_angle:
-        action_orien_cos_sim = action_reduce(
-            F.cosine_similarity(
-                action_pred[:, :, 2:], action_label[:, :, 2:], dim=-1
-            )
-        )
-        multi_action_orien_cos_sim = action_reduce(
-            F.cosine_similarity(
-                torch.flatten(action_pred[:, :, 2:], start_dim=1),
-                torch.flatten(action_label[:, :, 2:], start_dim=1),
-                dim=-1,
-            )
-        )
-        results["action_orien_cos_sim"] = action_orien_cos_sim
-        results["multi_action_orien_cos_sim"] = multi_action_orien_cos_sim
-
-    total_loss = alpha * 1e-2 * dist_loss + (1 - alpha) * action_loss
-    results["total_loss"] = total_loss
-
-    return results
-
-
-def _log_data(
-    i,
-    epoch,
-    num_batches,
-    normalized,
-    project_folder,
-    num_images_log,
-    loggers,
-    obs_image,
-    goal_image,
-    action_pred,
-    action_label,
-    dist_pred,
-    dist_label,
-    goal_pos,
-    dataset_index,
-    mode,
-    use_latest,
-    use_wandb=False,
-    wandb_log_freq=1,
-    print_log_freq=1,
-    image_log_freq=1,
-    wandb_increment_step=True,
-):
-    """
-    Log data to wandb and print to console.
-    """
-    data_log = {}
-    for key, logger in loggers.items():
-        if use_latest:
-            data_log[logger.full_name()] = logger.latest()
-            if i % print_log_freq == 0 and print_log_freq != 0:
-                print(
-                    f"(epoch {epoch}) (batch {i}/{num_batches - 1}) {logger.display()}"
-                )
-        else:
-            data_log[logger.full_name()] = logger.average()
-            if i % print_log_freq == 0 and print_log_freq != 0:
-                print(
-                    f"(epoch {epoch}) {logger.full_name()} {logger.average()}"
-                )
-
-    if use_wandb and i % wandb_log_freq == 0 and wandb_log_freq != 0:
-        wandb.log(data_log, commit=wandb_increment_step)
-
-    if image_log_freq != 0 and i % image_log_freq == 0:
-        visualize_dist_pred(
-            to_numpy(obs_image),
-            to_numpy(goal_image),
-            to_numpy(dist_pred),
-            to_numpy(dist_label),
-            mode,
-            project_folder,
-            epoch,
-            num_images_log,
-            use_wandb=use_wandb,
-        )
-        visualize_traj_pred(
-            to_numpy(obs_image),
-            to_numpy(goal_image),
-            to_numpy(dataset_index),
-            to_numpy(goal_pos),
-            to_numpy(action_pred),
-            to_numpy(action_label),
-            mode,
-            normalized,
-            project_folder,
-            epoch,
-            num_images_log,
-            use_wandb=use_wandb,
-        )
-
-
-# Train utils for NOMAD
-
-
-def _compute_losses_nomad(
-    ema_model,
-    noise_scheduler,
-    batch_obs_images,
-    batch_goal_images,
-    batch_dist_label: torch.Tensor,
-    batch_action_label: torch.Tensor,
-    device: torch.device,
-    action_mask: torch.Tensor,
-):
-    """
-    Compute losses for distance and action prediction.
-    """
-
-    pred_horizon = batch_action_label.shape[1]
-    action_dim = batch_action_label.shape[2]
-
-    model_output_dict = model_output(
-        ema_model,
-        noise_scheduler,
-        batch_obs_images,
-        batch_goal_images,
-        pred_horizon,
-        action_dim,
-        num_samples=1,
-        device=device,
-    )
-    uc_actions = model_output_dict["uc_actions"]
-    gc_actions = model_output_dict["gc_actions"]
-    gc_distance = model_output_dict["gc_distance"]
-
-    gc_dist_loss = F.mse_loss(gc_distance, batch_dist_label.unsqueeze(-1))
-
-    def action_reduce(unreduced_loss: torch.Tensor):
-        # Reduce over non-batch dimensions to get loss per batch element
-        while unreduced_loss.dim() > 1:
-            unreduced_loss = unreduced_loss.mean(dim=-1)
-        assert (
-            unreduced_loss.shape == action_mask.shape
-        ), f"{unreduced_loss.shape} != {action_mask.shape}"
-        return (unreduced_loss * action_mask).mean() / (
-            action_mask.mean() + 1e-2
-        )
-
-    # Mask out invalid inputs (for negatives, or when the distance between obs and goal is large)
-    assert (
-        uc_actions.shape == batch_action_label.shape
-    ), f"{uc_actions.shape} != {batch_action_label.shape}"
-    assert (
-        gc_actions.shape == batch_action_label.shape
-    ), f"{gc_actions.shape} != {batch_action_label.shape}"
-
-    uc_action_loss = action_reduce(
-        F.mse_loss(uc_actions, batch_action_label, reduction="none")
-    )
-    gc_action_loss = action_reduce(
-        F.mse_loss(gc_actions, batch_action_label, reduction="none")
-    )
-
-    uc_action_waypts_cos_similairity = action_reduce(
-        F.cosine_similarity(
-            uc_actions[:, :, :2], batch_action_label[:, :, :2], dim=-1
-        )
-    )
-    uc_multi_action_waypts_cos_sim = action_reduce(
-        F.cosine_similarity(
-            torch.flatten(uc_actions[:, :, :2], start_dim=1),
-            torch.flatten(batch_action_label[:, :, :2], start_dim=1),
-            dim=-1,
-        )
-    )
-
-    gc_action_waypts_cos_similairity = action_reduce(
-        F.cosine_similarity(
-            gc_actions[:, :, :2], batch_action_label[:, :, :2], dim=-1
-        )
-    )
-    gc_multi_action_waypts_cos_sim = action_reduce(
-        F.cosine_similarity(
-            torch.flatten(gc_actions[:, :, :2], start_dim=1),
-            torch.flatten(batch_action_label[:, :, :2], start_dim=1),
-            dim=-1,
-        )
-    )
-
-    results = {
-        "uc_action_loss": uc_action_loss,
-        "uc_action_waypts_cos_sim": uc_action_waypts_cos_similairity,
-        "uc_multi_action_waypts_cos_sim": uc_multi_action_waypts_cos_sim,
-        "gc_dist_loss": gc_dist_loss,
-        "gc_action_loss": gc_action_loss,
-        "gc_action_waypts_cos_sim": gc_action_waypts_cos_similairity,
-        "gc_multi_action_waypts_cos_sim": gc_multi_action_waypts_cos_sim,
-    }
-
-    return results
 
 
 # normalize data
@@ -561,10 +300,10 @@ def visualize_diffusion_action_distribution(
         ax[2].imshow(goal_image)
 
         # set title
-        ax[0].set_title(f"diffusion action predictions")
-        ax[1].set_title(f"observation")
+        ax[0].set_title("diffusion action predictions")
+        ax[1].set_title("observation")
         ax[2].set_title(
-            f"goal: label={np_distance_labels[i]} gc_dist={gc_distances_avg[i]:.2f}±{gc_distances_std[i]:.2f}"
+            f"goal: label={np_distance_labels[i]} gc_dist={gc_distances_avg[i]:.2f}±{gc_distances_std[i]:.2f}"  # noqa
         )
 
         # make the plot large
@@ -592,7 +331,7 @@ def transform_images(
             ),
         ]
     )
-    if type(pil_imgs) != list:
+    if not isinstance(pil_imgs, list):
         pil_imgs = [
             pil_imgs,  # type: ignore
         ]
@@ -615,6 +354,24 @@ def transform_images(
     return torch.cat(transf_imgs, dim=1)
 
 
+def interpolate_trajectory(trajectory, samples=1):
+    # Calculate the number of segments
+    num_segments = trajectory.shape[0] - 1
+    
+    # Generate the interpolated trajectory
+    interpolated_trajectory = np.zeros((num_segments * (samples + 1) + 1, 2))
+    
+    # Fill in the interpolated points
+    for i in range(num_segments):
+        start = trajectory[i]
+        end = trajectory[i + 1]
+        interpolated_trajectory[i * (samples + 1):(i + 1) * (samples + 1)] = np.linspace(start, end, samples + 2)[:-1]
+    
+    # Add the last point
+    interpolated_trajectory[-1] = trajectory[-1]
+    
+    return interpolated_trajectory
+
 def plot_steering_traj(
     frame_center,
     trajectory,
@@ -624,10 +381,13 @@ def plot_steering_traj(
     offsets=[0.0, -1.2, -10.0],
     method="add_weighted",
     track=True,
+    samples=10,
 ):
     assert method in ("overlay", "mask", "add_weighted")
 
     h, w = frame_center.shape[:2]
+
+    trajectory = interpolate_trajectory(trajectory, samples=samples)
 
     if intrinsic_matrix is None:
         # intrinsic_matrix = np.array([
@@ -759,7 +519,7 @@ def plot_bev_trajectory(trajectory, frame_center, color=(0, 255, 0)):
     return traj_plot
 
 
-def get_rect_coords_3D(Pi, Pj, width=0.25):
+def get_rect_coords_3D(Pi, Pj, width=1.5):
     x_i, y_i = Pi[0, 0], Pi[2, 0]
     x_j, y_j = Pj[0, 0], Pj[2, 0]
     points_2D = get_rect_coords(x_i, y_i, x_j, y_j, width)

@@ -11,7 +11,7 @@ YELLOW = np.array([1, 1, 0])
 MAGENTA = np.array([1, 0, 1])
 
 
-def numpy_to_img(arr: np.ndarray) -> Image:
+def numpy_to_img(arr: np.ndarray) -> Image:  # type: ignore
     img = Image.fromarray(np.transpose(np.uint8(255 * arr), (1, 2, 0)))
     img = img.resize(VIZ_IMAGE_SIZE)
     return img

@@ -13,7 +13,7 @@ if __name__ == "__main__":  # pragma: no cover
         "--media",
         "-m",
         default="media/demo.mp4",
-        help="File path to media, use camera index if you want to use the webcam",
+        help="File path, use camera index if you want to use the webcam",
     )
 
     args = parser.parse_args()

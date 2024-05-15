@@ -1,11 +1,11 @@
 """CLI interface for general_navigation project.
 """
 
+import os
 import time
 
 import cv2
 import numpy as np
-import PIL
 import torch
 from diffusers.schedulers.scheduling_ddpm import DDPMScheduler
 from PIL import Image as PILImage
@@ -35,7 +35,6 @@ def model_step(
 ):
     if len(context_queue) > model_params["context_size"]:
 
-        num_diffusion_iters = model_params["num_diffusion_iters"]
         obs_images = transform_images(
             context_queue, model_params["image_size"], center_crop=False
         )
@@ -66,8 +65,9 @@ def model_step(
         )
         naction = noisy_action
 
-        # init scheduler
-        noise_scheduler.set_timesteps(num_diffusion_iters)
+        if noise_scheduler is not None:
+            # init scheduler
+            noise_scheduler.set_timesteps(model_params["num_diffusion_iters"])
 
         start_time = time.time()
         for k in noise_scheduler.timesteps[:]:
@@ -79,10 +79,13 @@ def model_step(
                 global_cond=obs_cond,
             )
 
-            # inverse diffusion step (remove noise)
-            naction = noise_scheduler.step(
-                model_output=noise_pred, timestep=k, sample=naction
-            ).prev_sample
+            if noise_scheduler is not None:
+                # inverse diffusion step (remove noise)
+                naction = noise_scheduler.step(
+                    model_output=noise_pred, timestep=k, sample=naction
+                ).prev_sample
+            else:
+                naction = noise_pred
         print("time elapsed:", time.time() - start_time)
 
         naction = to_numpy(get_action(naction))
@@ -93,9 +96,6 @@ def model_step(
 
         if model_params["normalize"]:
             chosen_waypoint *= MAX_V / RATE
-
-        print("naction", naction.shape)
-        print("chosen_waypoint", chosen_waypoint)
 
         return naction
 
@@ -116,12 +116,14 @@ def main(args):  # pragma: no cover
     model = get_model(config)
     model = get_weights(config, model, device)
 
-    noise_scheduler = DDPMScheduler(
-        num_train_timesteps=config["num_diffusion_iters"],
-        beta_schedule="squaredcos_cap_v2",
-        clip_sample=True,
-        prediction_type="epsilon",
-    )
+    noise_scheduler = None
+    if config['run_name'] == "nomad":
+        noise_scheduler = DDPMScheduler(
+            num_train_timesteps=config["num_diffusion_iters"],
+            beta_schedule="squaredcos_cap_v2",
+            clip_sample=True,
+            prediction_type="epsilon",
+        )
 
     model = model.to(device=device)
 
@@ -129,8 +131,10 @@ def main(args):  # pragma: no cover
 
     try:
         input_media = int(input_media)
-    except:
-        pass
+        print(f"Camera index: {input_media}")
+    except ValueError:
+        assert os.path.isfile(input_media), f"File not found: {input_media}"
+        print(f"File path: {input_media}")
 
     vid = cv2.VideoCapture(input_media)
     ret, frame = vid.read()

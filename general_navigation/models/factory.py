@@ -7,8 +7,8 @@ import torch
 import yaml
 from platformdirs import user_cache_dir
 
-from general_navigation.diffusion_policy.model.diffusion.conditional_unet1d import (
-    ConditionalUnet1D,
+from general_navigation.diffusion_policy.model.diffusion import (
+    conditional_unet1d,
 )
 
 from .base_model import BaseModel
@@ -88,7 +88,7 @@ def get_model(config: Dict) -> BaseModel:
                 f"Vision encoder {config['vision_encoder']} not supported"
             )
 
-        noise_pred_net = ConditionalUnet1D(
+        noise_pred_net = conditional_unet1d.ConditionalUnet1D(
             input_dim=2,
             global_cond_dim=config["encoding_size"],
             down_dims=config["down_dims"],
@@ -148,7 +148,7 @@ def get_weights(config: Dict, model, device: str) -> torch.nn.Module:
         try:
             state_dict = loaded_model.module.state_dict()
             model.load_state_dict(state_dict, strict=False)
-        except AttributeError as e:
+        except AttributeError:
             state_dict = loaded_model.state_dict()
             model.load_state_dict(state_dict, strict=False)
 

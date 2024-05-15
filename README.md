@@ -3,6 +3,8 @@
 [![codecov](https://codecov.io/gh/AdityaNG/general-navigation/branch/main/graph/badge.svg?token=general-navigation_token_here)](https://codecov.io/gh/AdityaNG/general-navigation)
 [![CI](https://github.com/AdityaNG/general-navigation/actions/workflows/main.yml/badge.svg)](https://github.com/AdityaNG/general-navigation/actions/workflows/main.yml)
 
+![Demo](media/demo.gif)
+
 General Navigation Models based on GNM, ViNT, NoMaD as a pytorch repo for quick and easy deployment.
 Awesome general_navigation created by AdityaNG.
 
@@ -32,15 +34,17 @@ $ python -m general_navigation
 
 - [x] Import models from [visualnav-transformer](https://github.com/robodhruv/visualnav-transformer)
 - [x] Script to use specified video camera to feed video into the models
-- [ ] Visualize model's trajectory output
-- [ ] Arguments to CLI
-- [ ] Auto download model weights from [google drive](https://drive.google.com/drive/folders/1a9yWR2iooXFAqjQHetz263--4_2FFggg)
+- [x] Visualize model's trajectory output
+- [x] Arguments to CLI
+- [x] Auto download model weights from [google drive](https://drive.google.com/drive/folders/1a9yWR2iooXFAqjQHetz263--4_2FFggg)
+- [ ] Demo video
 - [ ] PyPi release
 - [ ] Example usage
 - [ ] Carla Integration
 - [ ] Fix scaling issue
 - [ ] Intrinsic matrix as argument
-- [ ] Linting fixes
+- [x] Linting fixes
+- [ ] MyPy testing
 - [ ] Add test cases for code coverage
 
 ## Development
