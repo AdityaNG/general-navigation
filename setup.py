@@ -43,4 +43,7 @@ setup(
         "console_scripts": ["general_navigation = general_navigation.__main__:main"]
     },
     extras_require={"test": read_requirements("requirements-test.txt")},
+    package_data={
+        "": ["*.yaml"],
+    },
 )
