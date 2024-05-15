@@ -4,6 +4,8 @@ Changelog
 
 (unreleased)
 ------------
+- Docs(README): usage instructions. [Aditya NG]
+- Release: version 0.2.1 🚀 [Aditya NG]
 - Fix(requirements.txt): dependencies. [Aditya NG]
 
 
