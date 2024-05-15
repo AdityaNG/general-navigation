@@ -85,10 +85,16 @@ Awesome general_navigation created by AdityaNG.</p>
 <p><a href="https://pypi.org/project/general-navigation/">PyPi Link</a></p>
 <pre><code class="language-bash">pip install general_navigation
 </code></pre>
+<p>If you want to connect with the Carla simulator, you will also need to seperately install carla</p>
+<pre><code class="language-bash">pip install carla==0.9.15  # Linux and Windows
+pip install carla==0.9.5  # Linux and Windows
+</code></pre>
 <h2 id="usage">Usage</h2>
 <p><a href="https://adityang.github.io/general-navigation/">Documentation Link</a></p>
 <p>Creating a pytorch instance of the model</p>
-<pre><code class="language-py">from .models.factory import get_default_config, get_model, get_weights
+<pre><code class="language-py">from general_navigation.models.factory import (
+  get_default_config, get_model, get_weights
+)
 
 config = get_default_config()
 model = get_model(config)
@@ -149,5 +155,5 @@ $ python3 -m general_navigation --media media/test.mp4
 
 <!--
 MkDocs version : 1.6.0
-Build Date UTC : 2024-05-15 08:52:27.899589+00:00
+Build Date UTC : 2024-05-15 22:26:25.387050+00:00
 -->
