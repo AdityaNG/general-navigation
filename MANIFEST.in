@@ -2,5 +2,6 @@ include LICENSE
 include HISTORY.md
 include Containerfile
 include general_navigation/models/config/*.yaml
+include general_navigation/models/media/*.png
 graft tests
 graft general_navigation

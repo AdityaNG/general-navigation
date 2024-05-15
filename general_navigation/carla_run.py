@@ -21,7 +21,7 @@ from general_navigation.models.model_utils import (
     plot_bev_trajectory,
     plot_steering_traj,
 )
-from general_navigation.schema.carla import DroneControls
+from general_navigation.schema.environment import DroneControls
 from general_navigation.settings import settings
 
 

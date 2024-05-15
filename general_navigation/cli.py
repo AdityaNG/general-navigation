@@ -6,15 +6,16 @@ import os
 import cv2
 import numpy as np
 import torch
-from diffusers.schedulers.scheduling_ddpm import DDPMScheduler
-from PIL import Image as PILImage
 
-from .models.factory import get_default_config, get_model, get_weights
+from .gpt.gpt_vision import GPTVision
+from .models.factory import get_default_config
 from .models.model_utils import (
-    model_step,
     plot_bev_trajectory,
+    plot_carstate_frame,
     plot_steering_traj,
 )
+from .schema.environment import DroneState
+from .schema.image import Image
 
 
 def main(args):  # pragma: no cover
@@ -28,21 +29,7 @@ def main(args):  # pragma: no cover
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
     config = get_default_config()
-    model = get_model(config)
-    model = get_weights(config, model, device)
-
-    noise_scheduler = None
-    if config["run_name"] == "nomad":
-        noise_scheduler = DDPMScheduler(
-            num_train_timesteps=config["num_diffusion_iters"],
-            beta_schedule="squaredcos_cap_v2",
-            clip_sample=True,
-            prediction_type="epsilon",
-        )
-
-    model = model.to(device=device)
-
-    context_queue = []
+    gpt = GPTVision(config, device=device)
 
     try:
         input_media = int(input_media)
@@ -52,41 +39,40 @@ def main(args):  # pragma: no cover
         print(f"File path: {input_media}")
 
     vid = cv2.VideoCapture(input_media)
-    ret, frame = vid.read()
+    ret, np_frame = vid.read()
 
-    context_size = config["context_size"]
+    steering_angle = 0.0
 
     with torch.no_grad():
         while ret:
-            trajectory = model_step(
-                model,
-                noise_scheduler,
-                context_queue,
-                config,
-                device,
+            state = DroneState(
+                image=Image(data=np_frame),
+                velocity_x=0.0,
+                velocity_y=0.0,
+                velocity_z=0.0,
+                steering_angle=steering_angle,
             )
-            ret, np_frame = vid.read()
-            frame = cv2.cvtColor(np_frame, cv2.COLOR_BGR2RGB)
-            frame = PILImage.fromarray(frame)
-
-            if len(context_queue) < context_size + 1:
-                context_queue.append(frame)
-            else:
-                context_queue.pop(0)
-                context_queue.append(frame)
+            controls = gpt.step(state)
+            trajectory = np.array(controls.trajectory)
+            steering_angle = controls.steer
 
             np_frame = cv2.resize(np_frame, (256, 128))
             np_frame_bev = np.zeros_like(np_frame)
-            if trajectory is not None:
-                trajectory = trajectory * 5.0
-                np_frame = plot_steering_traj(
-                    np_frame,
-                    trajectory,
-                    color=(255, 0, 0),
-                )
-                np_frame_bev = plot_bev_trajectory(
-                    trajectory, np_frame, color=(255, 0, 0)
-                )
+
+            trajectory = trajectory * 5.0
+            np_frame = plot_steering_traj(
+                np_frame,
+                trajectory,
+                color=(255, 0, 0),
+            )
+            np_frame_bev = plot_bev_trajectory(
+                trajectory, np_frame, color=(255, 0, 0)
+            )
+            np_frame_bev = plot_carstate_frame(
+                np_frame_bev,
+                steering_angle,
+            )
+            print("steering_angle", steering_angle)
 
             vis_frame = np.hstack((np_frame, np_frame_bev))
             cv2.imshow("General Navigation", vis_frame)
@@ -94,3 +80,5 @@ def main(args):  # pragma: no cover
             key = cv2.waitKey(1)
             if ord("q") == key:
                 break
+
+            ret, np_frame = vid.read()

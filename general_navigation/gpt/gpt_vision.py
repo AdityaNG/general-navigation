@@ -16,7 +16,7 @@ from general_navigation.models.factory import (
 )
 from general_navigation.models.model_utils import model_step
 from general_navigation.mpc import MPC
-from general_navigation.schema.carla import DroneControls, DroneState
+from general_navigation.schema.environment import DroneControls, DroneState
 
 
 class GPTVision:
@@ -46,7 +46,7 @@ class GPTVision:
         self.context_queue = []
         self.context_size = config["context_size"]
 
-        self.mpc = MPC(8.33, 0.04, 6)
+        self.mpc = MPC(2.0, 0.01, 6)
 
     def step(
         self,

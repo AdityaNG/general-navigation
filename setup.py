@@ -44,6 +44,6 @@ setup(
     },
     extras_require={"test": read_requirements("requirements-test.txt")},
     package_data={
-        "": ["*.yaml"],
+        "": ["*.yaml", "*.png"],
     },
 )

@@ -79,73 +79,86 @@ def MPC_run(trajectory, velocity, time_step, WHEEL_BASE, STEERING_RATIO, N):
                 use faster solver offline for cache miss
             - Unsure we're solving using all cores
     """
-    K = 0.000075  # tuning parameter for the cost function
+    K = 0.0000005  # tuning parameter for the cost function
     # K is the inverse agressiveness of the steering input
     # Smaller K values correspond to more aggressive steering
     # Larger K values correspond to less aggressive steering
 
-    dt = time_step
-    trajectory_interp = traverse_trajectory(trajectory.copy(), velocity * dt)
-    if trajectory_interp.shape[0] <= 1:
-        return np.zeros(N)
+    result_trajectory = np.zeros(N)
 
-    print("trajectory_interp", trajectory_interp.shape)
+    try:
+        dt = time_step
+        trajectory_interp = traverse_trajectory(
+            trajectory.copy(), velocity * dt
+        )
 
-    # define the model
-    def bicycle_model(x, u):
-        delta = np.radians(u) / STEERING_RATIO
-        x_next = np.zeros(4)
-        x_next[2] = x[2] + (
-            velocity / WHEEL_BASE * np.tan(delta) * dt
-        )  # theta
-        x_next[0] = x[0] + (velocity * np.cos(x_next[2]) * dt)  # x pos
-        x_next[1] = x[1] + (velocity * np.sin(x_next[2]) * dt)  # y pos
-        x_next[3] = velocity
-        return x_next
+        print("trajectory", trajectory.shape)
+        print("trajectory_interp", trajectory_interp.shape)
 
-    # define the cost function
-    def cost(u, x, x_des):
-        cost_val = 0.0
-        for i in range(N):
-            x = bicycle_model(x, u[i])
+        assert trajectory_interp.shape[0] > 1, "Not enough points"
 
-            # Compute cost for each point on the trajectory
-            cost_val += (
-                (x[0] - x_des[i, 0]) ** 2
-                + (x[1] - x_des[i, 1]) ** 2
-                + K * u[i] ** 2
-            )
+        # define the model
+        def bicycle_model(x, u):
+            delta = np.radians(u) / STEERING_RATIO
+            x_next = np.zeros(4)
+            x_next[2] = x[2] + (
+                velocity / WHEEL_BASE * np.tan(delta) * dt
+            )  # theta
+            x_next[0] = x[0] + (velocity * np.cos(x_next[2]) * dt)  # x pos
+            x_next[1] = x[1] + (velocity * np.sin(x_next[2]) * dt)  # y pos
+            x_next[3] = velocity
+            return x_next
 
-        return cost_val
+        # define the cost function
+        def cost(u, x, x_des):
+            cost_val = 0.0
+            for i in range(N):
+                x = bicycle_model(x, u[i])
 
-    # initial state and input sequence
-    x0 = np.array(
-        [trajectory_interp[0, 0], trajectory_interp[0, 1], 0.0, velocity]
-    )
-    # x0 = np.array([0.0, 0.0, 0.0, velocity])
-    u0 = np.zeros(N)
+                # Compute cost for each point on the trajectory
+                cost_val += (
+                    (x[0] - x_des[i, 0]) ** 2
+                    + (x[1] - x_des[i, 1]) ** 2
+                    + K * u[i] ** 2
+                )
 
-    # bounds on the steering angle
-    bounds = []
-    for _ in range(N):
-        bounds.append((-MAX_STEER, MAX_STEER))
+            return cost_val
 
-    # optimize the cost function
-    res = minimize(
-        cost,
-        u0,
-        args=(x0, trajectory_interp.copy()),
-        method="SLSQP",
-        bounds=bounds,
-        options=dict(maxiter=100),
-    )
+        # initial state and input sequence
+        # TODO: incorporate current steering angle
+        x0 = np.array(
+            [trajectory_interp[0, 0], trajectory_interp[0, 1], 0.0, velocity]
+        )
+        # TODO: incorporate current trajectory
+        u0 = np.zeros(N)
 
-    u_opt = res.x
-    return u_opt
+        # bounds on the steering angle
+        bounds = []
+        for _ in range(N):
+            bounds.append((-MAX_STEER, MAX_STEER))
+
+        # optimize the cost function
+        res = minimize(
+            cost,
+            u0,
+            args=(x0, trajectory_interp.copy()),
+            method="SLSQP",
+            bounds=bounds,
+            options=dict(maxiter=100),
+        )
+
+        u_opt = res.x
+        result_trajectory = u_opt
+    except Exception as ex:
+        print("Error: ", ex)
+    finally:
+        return result_trajectory
 
 
 def traverse_trajectory(traj, D):
-    traj_interp = [traj[0]]
+    traj_interp = [
+        traj[0],
+    ]
     dist = 0.0
     total_dist = 0.0
     for traj_i in range(1, traj.shape[0]):

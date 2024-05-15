@@ -680,3 +680,86 @@ def convert_3D_points_to_2D(points_3D, homo_cam_mat):
         points_2D.append([px, py])
 
     return np.array(points_2D)
+
+
+def rotate_image(image, angle):
+    image_center = tuple(np.array(image.shape[1::-1]) / 2)
+    rot_mat = cv2.getRotationMatrix2D(image_center, angle, 1.0)
+    result = cv2.warpAffine(
+        image, rot_mat, image.shape[1::-1], flags=cv2.INTER_LINEAR
+    )
+    return result
+
+
+STEERING_IMG_PATH = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "media/steering.png")
+)
+
+
+def plot_carstate_frame(
+    frame_img,
+    steering_gt=0.0,
+    steering_pred=0.0,
+    steering_img_path=STEERING_IMG_PATH,
+):
+
+    frame_img_steering = np.zeros_like(frame_img)
+
+    steering_dim = round(frame_img.shape[0] * 0.2)
+
+    # Draw Steering GT
+    assert os.path.isfile(
+        steering_img_path
+    ), f"File not found: {steering_img_path}"
+    steering_img = cv2.imread(steering_img_path)
+    steering_img = rotate_image(steering_img, round(steering_gt))
+    x_steering_start = round(frame_img_steering.shape[0] * 0.1)
+    y_steering_start = (
+        (frame_img_steering.shape[1] // 2) - (steering_dim // 2) - steering_dim
+    )
+    frame_img_steering[
+        x_steering_start : x_steering_start + steering_dim,
+        y_steering_start : y_steering_start + steering_dim,
+    ] = cv2.resize(steering_img, (steering_dim, steering_dim))
+    frame_img = cv2.addWeighted(frame_img, 1.0, frame_img_steering, 2.5, 0.0)
+
+    # Draw Steering Pred
+    steering_img = cv2.imread(steering_img_path)
+    steering_img = rotate_image(steering_img, round(steering_pred))
+    x_steering_start = round(frame_img_steering.shape[0] * 0.1)
+    y_steering_start = (
+        (frame_img_steering.shape[1] // 2) - (steering_dim // 2) + steering_dim
+    )
+    frame_img_steering[
+        x_steering_start : x_steering_start + steering_dim,
+        y_steering_start : y_steering_start + steering_dim,
+    ] = cv2.resize(steering_img, (steering_dim, steering_dim))
+    frame_img = cv2.addWeighted(frame_img, 1.0, frame_img_steering, -2.5, 0.0)
+
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    fontScale = 0.4
+    color = (255, 0, 0)
+    thickness = 1
+
+    frame_img = cv2.putText(
+        frame_img,
+        "steering_gt: " + str(round(steering_gt, 2)),
+        (10, 15),
+        font,
+        fontScale,
+        color,
+        thickness,
+        cv2.LINE_AA,
+    )
+    frame_img = cv2.putText(
+        frame_img,
+        "steer_pred: " + str(round(steering_pred, 2)),
+        (10, 25),
+        font,
+        fontScale,
+        color,
+        thickness,
+        cv2.LINE_AA,
+    )
+
+    return frame_img

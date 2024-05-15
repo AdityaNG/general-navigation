@@ -11,7 +11,7 @@ except ImportError:
 import carla
 from PIL import Image as PILImage
 
-from general_navigation.schema.carla import DroneControls, DroneState
+from general_navigation.schema.environment import DroneControls, DroneState
 from general_navigation.schema.image import Image
 
 from .helpers import HUD, KeyboardControl, World
