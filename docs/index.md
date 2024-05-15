@@ -43,5 +43,5 @@ options:
   --device {auto,cuda,cpu}, -d {auto,cuda,cpu}
   --media MEDIA, -m MEDIA
                         File path, use camera index if you want to use the webcam
-
+$ python3 -m general_navigation --media media/test.mp4
 ```
