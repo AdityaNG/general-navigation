@@ -14,20 +14,18 @@ pip install general_navigation
 
 ## Usage
 
+Creating a pytorch instance of the model
 ```py
-# TODO
-from general_navigation import BaseClass
-from general_navigation import base_function
+from .models.factory import get_default_config, get_model, get_weights
 
-BaseClass().base_method()
-base_function()
+config = get_default_config()
+model = get_model(config)
+model = get_weights(config, model, device)
 ```
 
+Using the command line tool for inference
 ```bash
-# TODO
 $ python -m general_navigation
-#or
-$ general_navigation
 ```
 
 ## TODO
@@ -35,10 +33,13 @@ $ general_navigation
 - [x] Import models from [visualnav-transformer](https://github.com/robodhruv/visualnav-transformer)
 - [x] Script to use specified video camera to feed video into the models
 - [ ] Visualize model's trajectory output
+- [ ] Arguments to CLI
 - [ ] Auto download model weights from [google drive](https://drive.google.com/drive/folders/1a9yWR2iooXFAqjQHetz263--4_2FFggg)
 - [ ] PyPi release
 - [ ] Example usage
 - [ ] Carla Integration
+- [ ] Fix scaling issue
+- [ ] Intrinsic matrix as argument
 - [ ] Linting fixes
 - [ ] Add test cases for code coverage
 

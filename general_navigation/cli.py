@@ -4,21 +4,27 @@
 import time
 
 import cv2
+import numpy as np
 import PIL
 import torch
 from diffusers.schedulers.scheduling_ddpm import DDPMScheduler
 from PIL import Image as PILImage
 
 from .models.factory import get_default_config, get_model, get_weights
-from .models.model_utils import get_action, to_numpy, transform_images
-from .visualizing.action_utils import plot_trajs_and_points_on_image
+from .models.model_utils import (
+    get_action,
+    plot_bev_trajectory,
+    plot_steering_traj,
+    to_numpy,
+    transform_images,
+)
 
 MAX_V = 1.0
 MAX_W = 1.0
 RATE = 10.0
 
 
-def loop(
+def model_step(
     model,
     noise_scheduler,
     context_queue,
@@ -88,16 +94,23 @@ def loop(
         if model_params["normalize"]:
             chosen_waypoint *= MAX_V / RATE
 
-        print(chosen_waypoint)
+        print("naction", naction.shape)
+        print("chosen_waypoint", chosen_waypoint)
+
+        return naction
+
+    return None
 
 
-def main():  # pragma: no cover
+def main(args):  # pragma: no cover
     """
     The main function executes on commands:
     `python -m general_navigation` and `$ general_navigation `.
     """
-    device = "cpu"
-    # device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    device = args.device
+    input_media = args.media
+    if device == "auto":
+        device = "cuda" if torch.cuda.is_available() else "cpu"
 
     config = get_default_config()
     model = get_model(config)
@@ -114,14 +127,19 @@ def main():  # pragma: no cover
 
     context_queue = []
 
-    vid = cv2.VideoCapture(0)
+    try:
+        input_media = int(input_media)
+    except:
+        pass
+
+    vid = cv2.VideoCapture(input_media)
     ret, frame = vid.read()
 
     context_size = config["context_size"]
 
     with torch.no_grad():
         while ret:
-            loop(
+            trajectory = model_step(
                 model,
                 noise_scheduler,
                 context_queue,
@@ -138,22 +156,21 @@ def main():  # pragma: no cover
                 context_queue.pop(0)
                 context_queue.append(frame)
 
+            np_frame = cv2.resize(np_frame, (256, 128))
+            np_frame_bev = np.zeros_like(np_frame)
+            if trajectory is not None:
+                trajectory = trajectory * 5.0
+                np_frame = plot_steering_traj(
+                    np_frame,
+                    trajectory,
+                    color=(255, 0, 0),
+                )
+                np_frame_bev = plot_bev_trajectory(
+                    trajectory, np_frame, color=(255, 0, 0)
+                )
 
-            visualize_traj_pred(
-                to_numpy(obs_image),
-                to_numpy(goal_image),
-                to_numpy(dataset_index),
-                to_numpy(goal_pos),
-                to_numpy(action_pred),
-                to_numpy(action_label),
-                mode,
-                normalized,
-                project_folder,
-                epoch,
-                num_images_log,
-                use_wandb=use_wandb,
-            )
-            cv2.imshow("General Navigation", np_frame)
+            vis_frame = np.hstack((np_frame, np_frame_bev))
+            cv2.imshow("General Navigation", vis_frame)
 
             key = cv2.waitKey(1)
             if ord("q") == key:
