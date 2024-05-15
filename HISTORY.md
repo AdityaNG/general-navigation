@@ -4,6 +4,12 @@ Changelog
 
 (unreleased)
 ------------
+- Feat(ui): plot steering angle. [Aditya NG]
+
+
+0.3.1 (2024-05-15)
+------------------
+- Release: version 0.3.1 🚀 [Aditya NG]
 - Fix(requirements.txt): relaxed carla requirement. [Aditya NG]
 
 
