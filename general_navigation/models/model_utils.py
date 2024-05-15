@@ -357,20 +357,23 @@ def transform_images(
 def interpolate_trajectory(trajectory, samples=1):
     # Calculate the number of segments
     num_segments = trajectory.shape[0] - 1
-    
+
     # Generate the interpolated trajectory
     interpolated_trajectory = np.zeros((num_segments * (samples + 1) + 1, 2))
-    
+
     # Fill in the interpolated points
     for i in range(num_segments):
         start = trajectory[i]
         end = trajectory[i + 1]
-        interpolated_trajectory[i * (samples + 1):(i + 1) * (samples + 1)] = np.linspace(start, end, samples + 2)[:-1]
-    
+        interpolated_trajectory[
+            i * (samples + 1) : (i + 1) * (samples + 1)
+        ] = np.linspace(start, end, samples + 2)[:-1]
+
     # Add the last point
     interpolated_trajectory[-1] = trajectory[-1]
-    
+
     return interpolated_trajectory
+
 
 def plot_steering_traj(
     frame_center,

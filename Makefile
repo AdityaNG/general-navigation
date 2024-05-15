@@ -32,7 +32,7 @@ fmt:              ## Format code using black & isort.
 
 .PHONY: lint
 lint:             ## Run pep8, black, mypy linters.
-	$(ENV_PREFIX)flake8 --exclude=general_navigation/visualizing/,general_navigation/diffusion_policy/,general_navigation/models/gnm/,general_navigation/models/nomad/,general_navigation/models/vint/ general_navigation/
+	$(ENV_PREFIX)flake8 --exclude=general_navigation/visualizing/,general_navigation/diffusion_policy/,general_navigation/models/gnm/,general_navigation/models/nomad/,general_navigation/models/vint/ --per-file-ignores="*.py:E203" general_navigation/
 	$(ENV_PREFIX)black -l 79 --check general_navigation/
 	$(ENV_PREFIX)black -l 79 --check tests/
 # $(ENV_PREFIX)mypy --ignore-missing-imports --exclude '(general_navigation/diffusion_policy|general_navigation/models/gnm|general_navigation/models/nomad|general_navigation/models/vint)/$\' --ignore-missing-imports general_navigation/

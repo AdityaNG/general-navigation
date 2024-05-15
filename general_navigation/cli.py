@@ -117,7 +117,7 @@ def main(args):  # pragma: no cover
     model = get_weights(config, model, device)
 
     noise_scheduler = None
-    if config['run_name'] == "nomad":
+    if config["run_name"] == "nomad":
         noise_scheduler = DDPMScheduler(
             num_train_timesteps=config["num_diffusion_iters"],
             beta_schedule="squaredcos_cap_v2",
