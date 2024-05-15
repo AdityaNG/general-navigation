@@ -24,7 +24,7 @@ class CarlaClient:
         host="127.0.0.1",
         port=2000,
         sync=True,
-        autopilot=True,
+        autopilot=False,
         width=256,
         height=128,
         rolename="hero",
@@ -127,22 +127,19 @@ class CarlaClient:
         """
         # return
         # controls.speed_index = 1
-        if controls.speed_index == 0:
+        if controls.speed == 0:
             self.world.player.enable_constant_velocity(
                 carla.Vector3D(0, 0, 0)  # 0 Km/h
             )
             self.world.constant_velocity_enabled = True
-        elif controls.speed_index == 1:
+        elif controls.speed > 0.0:
             self.world.player.enable_constant_velocity(
-                carla.Vector3D(8.33, 0, 0)  # 30 Km/h
+                carla.Vector3D(controls.speed, 0, 0)  # 30 Km/h
             )
             self.world.constant_velocity_enabled = True
 
             # TODO: MPC
-            steering_angle = 0.7
-
-            # if abs(steering_angle) < 0.2:
-            #     steering_angle = 0.0
+            steering_angle = controls.steer
 
             print("steering_angle", steering_angle)
 

@@ -30,9 +30,15 @@ class UISettings:
     )
 
 
+class SystemSettings:
+    GPT_ENABLED: bool = str_to_bool(os.getenv("GPT_ENABLED", "True"))
+    GPT_WAIT: bool = str_to_bool(os.getenv("GPT_WAIT", "False"))
+
+
 class Settings:
     drone: DroneSettings = DroneSettings()  # type: ignore[call-arg]
     ui: UISettings = UISettings()  # type: ignore[call-arg]
+    system: SystemSettings = SystemSettings()  # type: ignore[call-arg]
 
 
 settings = Settings()

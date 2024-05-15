@@ -55,7 +55,10 @@ $ python3 -m general_navigation --media media/test.mp4
 - [x] Demo video
 - [x] PyPi release
 - [x] Example usage
-- [ ] Carla Integration
+- [x] Carla Integration
+- [ ] MPC implementation
+- [ ] Visualize MPC reconstructed trajectory
+- [ ] Visualize Steering angle
 - [ ] Fix scaling issue
 - [ ] Intrinsic matrix as argument
 - [x] Documentation: `mkdocs gh-deploy`

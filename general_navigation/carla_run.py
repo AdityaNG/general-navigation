@@ -17,7 +17,10 @@ from torch.multiprocessing import Process, Queue
 
 from general_navigation.carla.client import CarlaClient
 from general_navigation.gpt.gpt_vision import GPTVision
-from general_navigation.models.model_utils import plot_steering_traj
+from general_navigation.models.model_utils import (
+    plot_bev_trajectory,
+    plot_steering_traj,
+)
 from general_navigation.schema.carla import DroneControls
 from general_navigation.settings import settings
 
@@ -29,8 +32,8 @@ def async_gpt(gpt_input_q: Queue, gpt_output_q: Queue, gpt: GPTVision):
             data = gpt_input_q.get()
             drone_state = data
             gpt_controls = gpt.step(drone_state)
-            prompt_str = gpt.previous_messages.to_str()
-            gpt_output_q.put((gpt_controls.model_dump(), prompt_str))
+            gpt_controls_dict = gpt_controls.model_dump()
+            gpt_output_q.put(gpt_controls_dict)
         except Exception as ex:
             print("Exception while calling GPT", ex)
             traceback.print_exc()
@@ -174,24 +177,20 @@ def main():  # pragma: no cover
     gpt_process.daemon = True
     gpt_process.start()
 
-    text_visual = np.zeros((512 - 128, 512, 3), dtype=np.uint8)
     gpt_controls = DroneControls(
         trajectory=[
             (0, 0),
         ],
         speed=0.0,
+        steer=0.0,
     )
 
     try:
         while True:
-            visual = np.zeros((512, 512, 3), dtype=np.uint8)
             client.game_loop()
 
             drone_state = client.get_car_state(default=drone_state)
             image_raw = np.array(
-                drone_state.image.cv_image(),
-            )
-            image = np.array(
                 drone_state.image.cv_image(),
             )
 
@@ -206,8 +205,7 @@ def main():  # pragma: no cover
             #         image, template_trajectory_3d, color=color, track=False
             #     )
 
-            visual[0:128, 0:256] = image
-            print_text_image(visual[0:128, 0:256], "Prompt")
+            # print_text_image(visual[0:128, 0:256], "Prompt")
 
             image_vis = image_raw.copy()
 
@@ -220,32 +218,24 @@ def main():  # pragma: no cover
                 settings.system.GPT_WAIT
                 and time.time() * 1000 - last_update > 10.0 * 1000
             ):
-                gpt_controls_dict, prompt_str = gpt_output_q.get()
+                gpt_controls_dict = gpt_output_q.get()
                 gpt_controls = DroneControls(**gpt_controls_dict)
-
-                client.set_car_controls(gpt_controls, gpt.trajectory_encoder)
-                gpt.previous_messages.timestamp = last_update
+                client.set_car_controls(gpt_controls)
                 last_update = gpt_controls.timestamp
 
-                text_visual = np.zeros((512 - 128, 512, 3), dtype=np.uint8)
-                print_text_image(
-                    text_visual,
-                    prompt_str,
-                    width=80,
-                    font_size=0.35,
-                    font_thickness=1,
-                )
-
+            trajectory = np.array(gpt_controls.trajectory)
             plot_steering_traj(
                 image_vis,
-                gpt_controls.trajectory,
+                trajectory,
                 color=(255, 0, 0),
                 track=True,
             )
+            image_bev = plot_bev_trajectory(
+                trajectory, image_vis, color=(255, 0, 0)
+            )
 
-            visual[0:128, 256:512] = image_vis
-            visual[128:512, 0:512] = text_visual
-            print_text_image(visual[0:128, 256:512], "DriveLLaVA Controls")
+            visual = np.hstack((image_vis, image_bev))
+            print_text_image(visual, "GNM Controls")
 
             cv2.imshow("General Navigation", visual)
             rec.write(visual)
@@ -262,5 +252,13 @@ def main():  # pragma: no cover
 
 
 if __name__ == "__main__":
+    from torch.multiprocessing import set_start_method
+
+    try:
+        set_start_method("spawn")
+    except RuntimeError:
+        print("Torch multiprocessing error, cannot proceed")
+        exit()
+
     with start_carla():
         main()

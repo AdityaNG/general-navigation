@@ -14,3 +14,5 @@ diffusers
 matplotlib
 wandb
 pydantic
+simple-pid==1.0.1
+scipy==1.10.0

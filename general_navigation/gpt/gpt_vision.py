@@ -4,8 +4,10 @@ GPT Vision to make Control Decisions
 
 from typing import Dict
 
+import cv2
 import torch
 from diffusers.schedulers.scheduling_ddpm import DDPMScheduler
+from PIL import Image as PILImage
 
 from general_navigation.models.factory import (
     get_default_config,
@@ -13,6 +15,7 @@ from general_navigation.models.factory import (
     get_weights,
 )
 from general_navigation.models.model_utils import model_step
+from general_navigation.mpc import MPC
 from general_navigation.schema.carla import DroneControls, DroneState
 
 
@@ -43,22 +46,28 @@ class GPTVision:
         self.context_queue = []
         self.context_size = config["context_size"]
 
+        self.mpc = MPC(8.33, 0.04, 6)
+
     def step(
         self,
         state: DroneState,
     ) -> DroneControls:
         # base64_image = encode_opencv_image(image)
-        image = state.image.cv_image()
-        gpt_controls = DroneControls(trajectory=[(0, 0), (0, 0)], speed=0.0)
+        np_frame = state.image.cv_image()
+        frame = cv2.cvtColor(np_frame, cv2.COLOR_BGR2RGB)
+        frame = PILImage.fromarray(frame)
+        gpt_controls = DroneControls(
+            trajectory=[(0, 0), (0, 0)], speed=0.0, steer=0.0
+        )
 
         if len(self.context_queue) < self.context_size + 1:
-            self.context_queue.append(image)
+            self.context_queue.append(frame)
         else:
             self.context_queue.pop(0)
-            self.context_queue.append(image)
+            self.context_queue.append(frame)
 
-        print("image:", image.shape)
-        print("state:", state)
+        # print("image:", np_frame.shape)
+        # print("state:", str(state))
 
         trajectory = model_step(
             self.model,
@@ -69,9 +78,11 @@ class GPTVision:
         )
 
         if trajectory is not None:
-            gpt_controls.trajectory = gpt_controls
-            gpt_controls.speed = 1.0
+            gpt_controls.trajectory = trajectory.tolist()
+            gpt_controls.speed = 8.33  # 30 mph
 
-        print("gpt:", gpt_controls)
+            accel, steer = self.mpc.step(trajectory, gpt_controls.speed)
+
+            gpt_controls.steer = steer
 
         return gpt_controls

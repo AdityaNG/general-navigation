@@ -1,5 +1,4 @@
 import os
-import time
 from typing import List
 
 import cv2
@@ -67,7 +66,6 @@ def model_step(
             # init scheduler
             noise_scheduler.set_timesteps(model_params["num_diffusion_iters"])
 
-        start_time = time.time()
         for k in noise_scheduler.timesteps[:]:
             # predict noise
             noise_pred = model(
@@ -84,7 +82,6 @@ def model_step(
                 ).prev_sample
             else:
                 naction = noise_pred
-        print("time elapsed:", time.time() - start_time)
 
         naction = to_numpy(get_action(naction))
 
@@ -95,7 +92,11 @@ def model_step(
         if model_params["normalize"]:
             chosen_waypoint *= MAX_V / RATE
 
-        return naction
+        trajectory = naction.copy()
+
+        trajectory[:, [0, 1]] = trajectory[:, [1, 0]]
+
+        return trajectory
 
     return None
 
@@ -514,10 +515,10 @@ def plot_steering_traj(
         p4d = np.ones((4, 1))
         p3d = np.array(
             [
-                trajectory_point[1] * 1 - offsets[0],
+                trajectory_point[0] * 1 - offsets[0],
                 # trajectory_point[1] * 1 - offsets[1],
                 -offsets[1],
-                trajectory_point[0] * 1 - offsets[2],
+                trajectory_point[1] * 1 - offsets[2],
             ]
         ).reshape((3, 1))
         # p3d = np.linalg.inv(rot) @ p3d
@@ -573,8 +574,8 @@ def plot_bev_trajectory(trajectory, frame_center, color=(0, 255, 0)):
     WIDTH, HEIGHT = frame_center.shape[1], frame_center.shape[0]
     traj_plot = np.ones((HEIGHT, WIDTH, 3), dtype=np.uint8) * 255
 
-    Z = trajectory[:, 0]
-    X = trajectory[:, 1]
+    Z = trajectory[:, 1]
+    X = trajectory[:, 0]
 
     RAN = 20.0
     X_min, X_max = -RAN, RAN

@@ -6,6 +6,10 @@ import numpy as np
 KMPH_2_MPS = 1 / 3.6
 DEG_2_RAD = np.pi / 180
 
+MAX_STEER = 460.0
+WHEEL_BASE = 2.83972
+STEERING_RATIO = 13.27
+
 
 def encode_opencv_image(img):
     _, buffer = cv2.imencode(".jpg", img)

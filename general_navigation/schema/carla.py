@@ -2,8 +2,10 @@
 Models
 """
 
+from typing import List
+
 import numpy as np
-from pydantic import ConfigDict
+from pydantic import validator
 
 from general_navigation.common import KMPH_2_MPS
 
@@ -14,10 +16,24 @@ from .packet import Packet
 class DroneControls(Packet):
     """Controls Request"""
 
-    trajectory: np.ndarray  # m
+    trajectory: List[List[float]]  # [(x1, y1),...,(xN, yN)] m
     speed: float  # m/s
+    steer: float  # -1 to 1
 
-    model_config = ConfigDict(arbitrary_types_allowed=True)
+    @validator("trajectory", pre=True)
+    def validate_image(cls, v):
+        if isinstance(v, list) or isinstance(v, tuple):
+            v = np.array(v, dtype=np.float32)
+
+        # if isinstance(v, dict):
+        #     print(v)
+
+        assert len(v.shape) == 2, f"invalid shape: {v.shape}"
+        assert v.shape[1] == 2, f"invalid shape: {v.shape}"
+
+        v = v.tolist()
+
+        return v
 
 
 class DroneState(Packet):
@@ -44,3 +60,15 @@ class DroneState(Packet):
             return False
 
         return True
+
+    def __str__(self) -> str:
+        return str(
+            f"DroneState(image={np.array(self.image.cv_image()).shape}"
+            f"vx={self.velocity_x}, "
+            f"vy={self.velocity_y}, "
+            f"vz={self.velocity_z}, "
+            f"steering={self.steering_angle})"
+        )
+
+    # def __repr__(self) -> str:
+    #     return str(self)
