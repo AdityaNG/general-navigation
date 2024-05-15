@@ -1,9 +1,12 @@
 # General Navigation
 
+![PyPI - Downloads](https://img.shields.io/pypi/dd/general-navigation)
+[![PyPI - Version](https://img.shields.io/pypi/v/general-navigation)](https://pypi.org/project/general-navigation/)
 [![codecov](https://codecov.io/gh/AdityaNG/general-navigation/branch/main/graph/badge.svg?token=general-navigation_token_here)](https://codecov.io/gh/AdityaNG/general-navigation)
 [![CI](https://github.com/AdityaNG/general-navigation/actions/workflows/main.yml/badge.svg)](https://github.com/AdityaNG/general-navigation/actions/workflows/main.yml)
+![GitHub License](https://img.shields.io/github/license/AdityaNG/general-navigation)
 
-![Demo](https://github.com/AdityaNG/general-navigation/blob/main/media/demo.gif)
+![Demo](https://raw.githubusercontent.com/AdityaNG/general-navigation/main/media/demo.gif)
 
 General Navigation Models based on GNM, ViNT, NoMaD as a pytorch repo for quick and easy deployment.
 Awesome general_navigation created by AdityaNG.
