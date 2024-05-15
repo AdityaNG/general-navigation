@@ -4,6 +4,12 @@ Changelog
 
 (unreleased)
 ------------
+- Fix(requirements.txt): dependencies. [Aditya NG]
+
+
+0.2.1 (2024-05-15)
+------------------
+- Release: version 0.2.1 🚀 [Aditya NG]
 - Docs(docs/index.md): links. [Aditya NG]
 - Docs(mkdocs): documentation in the web. [Aditya NG]
 
