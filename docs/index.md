@@ -13,11 +13,15 @@ Awesome general_navigation created by AdityaNG.
 
 ## Install it from PyPI
 
+[PyPi Link](https://pypi.org/project/general-navigation/)
+
 ```bash
 pip install general_navigation
 ```
 
 ## Usage
+
+[Documentation Link](https://adityang.github.io/general-navigation/)
 
 Creating a pytorch instance of the model
 ```py

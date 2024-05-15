@@ -20,7 +20,7 @@ pip install general_navigation
 
 ## Usage
 
-Documentation Link
+[Documentation Link](https://adityang.github.io/general-navigation/)
 
 Creating a pytorch instance of the model
 ```py
