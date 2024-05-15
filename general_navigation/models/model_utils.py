@@ -1,4 +1,5 @@
 import os
+import time
 from typing import List
 
 import cv2
@@ -15,6 +16,89 @@ from torchvision import transforms
 
 from general_navigation.visualizing.action_utils import plot_trajs_and_points
 from general_navigation.visualizing.visualize_utils import from_numpy, to_numpy
+
+MAX_V = 1.0
+MAX_W = 1.0
+RATE = 10.0
+
+
+def model_step(
+    model,
+    noise_scheduler,
+    context_queue,
+    model_params,
+    device,
+    num_samples=8,
+    waypoint=2,
+):
+    if len(context_queue) > model_params["context_size"]:
+
+        obs_images = transform_images(
+            context_queue, model_params["image_size"], center_crop=False
+        )
+        obs_images = torch.split(obs_images, 3, dim=1)
+        obs_images = torch.cat(obs_images, dim=1)
+        obs_images = obs_images.to(device)
+        fake_goal = torch.randn((1, 3, *model_params["image_size"])).to(device)
+        mask = torch.ones(1).long().to(device)  # ignore the goal
+
+        # infer action
+        # encoder vision features
+        obs_cond = model(
+            "vision_encoder",
+            obs_img=obs_images,
+            goal_img=fake_goal,
+            input_goal_mask=mask,
+        )
+
+        # (B, obs_horizon * obs_dim)
+        if len(obs_cond.shape) == 2:
+            obs_cond = obs_cond.repeat(num_samples, 1)
+        else:
+            obs_cond = obs_cond.repeat(num_samples, 1, 1)
+
+        # initialize action from Gaussian noise
+        noisy_action = torch.randn(
+            (num_samples, model_params["len_traj_pred"], 2), device=device
+        )
+        naction = noisy_action
+
+        if noise_scheduler is not None:
+            # init scheduler
+            noise_scheduler.set_timesteps(model_params["num_diffusion_iters"])
+
+        start_time = time.time()
+        for k in noise_scheduler.timesteps[:]:
+            # predict noise
+            noise_pred = model(
+                "noise_pred_net",
+                sample=naction,
+                timestep=k,
+                global_cond=obs_cond,
+            )
+
+            if noise_scheduler is not None:
+                # inverse diffusion step (remove noise)
+                naction = noise_scheduler.step(
+                    model_output=noise_pred, timestep=k, sample=naction
+                ).prev_sample
+            else:
+                naction = noise_pred
+        print("time elapsed:", time.time() - start_time)
+
+        naction = to_numpy(get_action(naction))
+
+        naction = naction[0]  # change this based on heuristic
+
+        chosen_waypoint = naction[waypoint]
+
+        if model_params["normalize"]:
+            chosen_waypoint *= MAX_V / RATE
+
+        return naction
+
+    return None
+
 
 VISUALIZATION_IMAGE_SIZE = (160, 120)
 IMAGE_ASPECT_RATIO = 4 / 3

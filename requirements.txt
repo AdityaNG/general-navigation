@@ -6,8 +6,11 @@ einops>=0.8.0
 opencv-python>=4.9.0.80
 efficientnet_pytorch==0.7.1
 vit-pytorch==1.6.9
+pygame==2.5.2
+carla==0.9.15
 platformdirs
 gdown
 diffusers
 matplotlib
 wandb
+pydantic
