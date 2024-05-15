@@ -4,6 +4,13 @@ Changelog
 
 (unreleased)
 ------------
+- Docs(docs/index.md): links. [Aditya NG]
+- Docs(mkdocs): documentation in the web. [Aditya NG]
+
+
+0.2.0 (2024-05-15)
+------------------
+- Release: version 0.2.0 🚀 [Aditya NG]
 - Fix(manifest): added config yamls. [Aditya NG]
 - Fix(init): files added to ensure correct installation. [Aditya NG]
 
