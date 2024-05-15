@@ -27,8 +27,6 @@ GNM_WEIGHTS = os.path.join(CACHE_DIR, "gnm.pth")
 NOMAD_WEIGHTS = os.path.join(CACHE_DIR, "nomad.pth")
 VINT_WEIGHTS = os.path.join(CACHE_DIR, "vint.pth")
 
-print("CONFIG_DIR", CONFIG_DIR)
-
 
 def get_default_config(name: str = "nomad.yaml") -> Dict:
     yaml_path = os.path.join(CONFIG_DIR, name)

@@ -1,17 +1,43 @@
-# Welcome to MkDocs
+# General Navigation
 
-For full documentation visit [mkdocs.org](https://www.mkdocs.org).
+[![PyPI - Downloads](https://img.shields.io/pypi/dd/general-navigation)](https://pypi.org/project/general-navigation/)
+[![PyPI - Version](https://img.shields.io/pypi/v/general-navigation)](https://pypi.org/project/general-navigation/)
+[![codecov](https://codecov.io/gh/AdityaNG/general-navigation/branch/main/graph/badge.svg?token=general-navigation_token_here)](https://codecov.io/gh/AdityaNG/general-navigation)
+[![CI](https://github.com/AdityaNG/general-navigation/actions/workflows/main.yml/badge.svg)](https://github.com/AdityaNG/general-navigation/actions/workflows/main.yml)
+![GitHub License](https://img.shields.io/github/license/AdityaNG/general-navigation)
 
-## Commands
+![Demo](https://raw.githubusercontent.com/AdityaNG/general-navigation/main/media/demo.gif)
 
-* `mkdocs new [dir-name]` - Create a new project.
-* `mkdocs serve` - Start the live-reloading docs server.
-* `mkdocs build` - Build the documentation site.
-* `mkdocs -h` - Print help message and exit.
+General Navigation Models based on GNM, ViNT, NoMaD as a pytorch repo for quick and easy deployment.
+Awesome general_navigation created by AdityaNG.
 
-## Project layout
+## Install it from PyPI
 
-    mkdocs.yml    # The configuration file.
-    docs/
-        index.md  # The documentation homepage.
-        ...       # Other markdown pages, images and other files.
+```bash
+pip install general_navigation
+```
+
+## Usage
+
+Creating a pytorch instance of the model
+```py
+from .models.factory import get_default_config, get_model, get_weights
+
+config = get_default_config()
+model = get_model(config)
+model = get_weights(config, model, device)
+```
+
+Using the command line tool for inference
+```bash
+$ python3 -m general_navigation --help
+CONFIG_DIR /home/aditya/miniconda3/envs/oi/lib/python3.11/site-packages/general_navigation/models/config
+usage: general_navigation [-h] [--device {auto,cuda,cpu}] [--media MEDIA]
+
+options:
+  -h, --help            show this help message and exit
+  --device {auto,cuda,cpu}, -d {auto,cuda,cpu}
+  --media MEDIA, -m MEDIA
+                        File path, use camera index if you want to use the webcam
+
+```
