@@ -28,7 +28,7 @@ def model_step(
     model_params,
     device,
     num_samples=8,
-    waypoint=2,
+    waypoint=0,
 ):
     if len(context_queue) > model_params["context_size"]:
 

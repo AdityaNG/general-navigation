@@ -46,7 +46,9 @@ class GPTVision:
         self.context_queue = []
         self.context_size = config["context_size"]
 
-        self.mpc = MPC(2.0, 0.035, 6)
+        self.speed = 5.0  # m/s
+
+        self.mpc = MPC(self.speed, 0.035, 6)
 
     def step(
         self,
@@ -79,7 +81,7 @@ class GPTVision:
 
         if trajectory is not None:
             gpt_controls.trajectory = trajectory.tolist()
-            gpt_controls.speed = 8.33  # 30 mph
+            gpt_controls.speed = self.speed
 
             accel, steer = self.mpc.step(trajectory, gpt_controls.speed)
 

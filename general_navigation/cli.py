@@ -86,5 +86,5 @@ def main(args):  # pragma: no cover
             ret, np_frame = vid.read()
             iter_count += 1
 
-            if iter_count > args.max_iters:
+            if args.max_iters >= 0 and iter_count > args.max_iters:
                 break
