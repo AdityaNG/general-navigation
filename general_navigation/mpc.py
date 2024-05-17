@@ -28,8 +28,9 @@ class MPC:
         )
         self.last_accel = 0.0
         self.last_update_time = time.time()
+        self.steering_pred_list = np.zeros(self.horizon)
 
-    def step(self, trajectory, set_speed):
+    def step(self, trajectory, set_speed, current_steering):
         now = time.time()
         accel, steer = 0.0, 0.0  # Default to no action
 
@@ -50,6 +51,8 @@ class MPC:
             WHEEL_BASE,
             STEERING_RATIO,
             self.horizon,
+            current_steering,
+            self.steering_pred_list,
         )
 
         # Autopilot steering command (-1.0, +1.0)
@@ -68,7 +71,16 @@ class MPC:
         return accel, steer
 
 
-def MPC_run(trajectory, velocity, time_step, WHEEL_BASE, STEERING_RATIO, N):
+def MPC_run(
+    trajectory,
+    velocity,
+    time_step,
+    WHEEL_BASE,
+    STEERING_RATIO,
+    N,
+    current_steering,
+    result_trajectory,
+):
     """
     TODO: Optimize this function
     Currently, it takes about 60ms to 80ms to run
@@ -79,12 +91,10 @@ def MPC_run(trajectory, velocity, time_step, WHEEL_BASE, STEERING_RATIO, N):
                 use faster solver offline for cache miss
             - Unsure we're solving using all cores
     """
-    K = 0.00005  # tuning parameter for the cost function
+    K = 0.000015  # tuning parameter for the cost function
     # K is the inverse agressiveness of the steering input
     # Smaller K values correspond to more aggressive steering
     # Larger K values correspond to less aggressive steering
-
-    result_trajectory = np.zeros(N)
 
     try:
         dt = time_step
@@ -125,9 +135,13 @@ def MPC_run(trajectory, velocity, time_step, WHEEL_BASE, STEERING_RATIO, N):
             return cost_val
 
         # initial state and input sequence
-        # TODO: incorporate current steering angle
         x0 = np.array(
-            [trajectory_interp[0, 0], trajectory_interp[0, 1], 0.0, velocity]
+            [
+                trajectory_interp[0, 0],
+                trajectory_interp[0, 1],
+                current_steering,
+                velocity,
+            ]
         )
         # TODO: incorporate current trajectory
         u0 = np.zeros(N)

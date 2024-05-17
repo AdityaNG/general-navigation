@@ -5,6 +5,7 @@ GPT Vision to make Control Decisions
 from typing import Dict
 
 import cv2
+import numpy as np
 import torch
 from diffusers.schedulers.scheduling_ddpm import DDPMScheduler
 from PIL import Image as PILImage
@@ -48,7 +49,12 @@ class GPTVision:
 
         self.speed = 5.0  # m/s
 
-        self.mpc = MPC(self.speed, 0.035, 6)
+        self.horizon = 6
+
+        self.mpc = MPC(self.speed, 0.035, self.horizon)
+
+        self.trajectory_history = []
+        self.trajectory_history_size = 4
 
     def step(
         self,
@@ -80,10 +86,21 @@ class GPTVision:
         )
 
         if trajectory is not None:
-            gpt_controls.trajectory = trajectory.tolist()
+            self.trajectory_history.append(trajectory.tolist())
+
+            if len(self.trajectory_history) > self.trajectory_history_size:
+                self.trajectory_history.pop(0)
+
+            gpt_controls.trajectory = np.mean(
+                np.array(self.trajectory_history), axis=0
+            ).tolist()
             gpt_controls.speed = self.speed
 
-            accel, steer = self.mpc.step(trajectory, gpt_controls.speed)
+            accel, steer = self.mpc.step(
+                np.array(gpt_controls.trajectory),
+                gpt_controls.speed,
+                state.steering_angle,
+            )
 
             gpt_controls.steer = steer
 
