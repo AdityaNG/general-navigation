@@ -4,6 +4,12 @@ Changelog
 
 (unreleased)
 ------------
+- Test(cli.py): testing cli and its dependencies. [Aditya NG]
+
+
+0.4.0 (2024-05-15)
+------------------
+- Release: version 0.4.0 🚀 [Aditya NG]
 - Feat(ui): plot steering angle. [Aditya NG]
 
 
