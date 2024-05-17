@@ -42,6 +42,7 @@ def main(args):  # pragma: no cover
     ret, np_frame = vid.read()
 
     steering_angle = 0.0
+    iter_count = 0
 
     with torch.no_grad():
         while ret:
@@ -75,10 +76,15 @@ def main(args):  # pragma: no cover
             print("steering_angle", steering_angle)
 
             vis_frame = np.hstack((np_frame, np_frame_bev))
-            cv2.imshow("General Navigation", vis_frame)
+            if not args.silent:
+                cv2.imshow("General Navigation", vis_frame)
 
-            key = cv2.waitKey(1)
-            if ord("q") == key:
-                break
+                key = cv2.waitKey(1)
+                if ord("q") == key:
+                    break
 
             ret, np_frame = vid.read()
+            iter_count += 1
+
+            if iter_count > args.max_iters:
+                break

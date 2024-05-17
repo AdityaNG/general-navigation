@@ -187,6 +187,7 @@ def main():  # pragma: no cover
 
     try:
         while True:
+            start_time = time.time()
             client.game_loop()
 
             drone_state = client.get_car_state(default=drone_state)
@@ -242,6 +243,10 @@ def main():  # pragma: no cover
             key = cv2.waitKey(10) & 0xFF
             if key == ord("q"):
                 break
+
+            duration = time.time() - start_time
+            fps = 1.0 / duration
+            print(f"FPS: {fps} ; Time: {duration}")
     except KeyboardInterrupt:
         print("Land drone on keyboard interrupt, exiting...")
     except Exception:

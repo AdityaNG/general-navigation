@@ -15,6 +15,19 @@ if __name__ == "__main__":  # pragma: no cover
         default="media/test.mp4",
         help="File path, use camera index if you want to use the webcam",
     )
+    parser.add_argument(
+        "--silent",
+        "-s",
+        action="store_true",
+        help="Don't use the UI, run silently",
+    )
+    parser.add_argument(
+        "--max_iters",
+        "-i",
+        default=-1,
+        type=int,
+        help="Number of iterations to run for, -1 to run indefinately",
+    )
 
     args = parser.parse_args()
     main(args)

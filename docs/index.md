@@ -14,15 +14,17 @@ Awesome general_navigation created by AdityaNG.
 ## Install it from PyPI
 
 [PyPi Link](https://pypi.org/project/general-navigation/)
+Install our project from pip and quickly get started by trying it out on your own test video!
 
 ```bash
 pip install general_navigation
+python3 -m general_navigation --media media/test.mp4
 ```
 
 If you want to connect with the Carla simulator, you will also need to seperately install carla
 ```bash
 pip install carla==0.9.15  # Linux and Windows
-pip install carla==0.9.5  # Linux and Windows
+pip install carla==0.9.5  # Mac
 ```
 
 ## Usage

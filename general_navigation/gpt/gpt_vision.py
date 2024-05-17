@@ -46,7 +46,7 @@ class GPTVision:
         self.context_queue = []
         self.context_size = config["context_size"]
 
-        self.mpc = MPC(2.0, 0.01, 6)
+        self.mpc = MPC(2.0, 0.035, 6)
 
     def step(
         self,

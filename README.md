@@ -14,14 +14,17 @@ General Navigation Models based on GNM, ViNT, NoMaD as a pytorch repo for quick 
 
 [PyPi Link](https://pypi.org/project/general-navigation/)
 
+Install our project from pip and quickly get started by trying it out on your own test video!
+
 ```bash
 pip install general_navigation
+python3 -m general_navigation --media media/test.mp4
 ```
 
 If you want to connect with the Carla simulator, you will also need to seperately install carla
 ```bash
 pip install carla==0.9.15  # Linux and Windows
-pip install carla==0.9.5  # Linux and Windows
+pip install carla==0.9.5  # Mac
 ```
 
 ## Usage
@@ -39,7 +42,7 @@ model = get_model(config)
 model = get_weights(config, model, device)
 ```
 
-Using the command line tool for inference
+Using the command line tool for inference on a video
 ```bash
 $ python3 -m general_navigation --help
 usage: general_navigation [-h] [--device {auto,cuda,cpu}] [--media MEDIA]
@@ -50,6 +53,11 @@ options:
   --media MEDIA, -m MEDIA
                         File path, use camera index if you want to use the webcam
 $ python3 -m general_navigation --media media/test.mp4
+```
+
+Using the command line tool for working with Carla simulator
+```bash
+$ python3 -m general_navigation.carla_run
 ```
 
 ## TODO
@@ -63,9 +71,9 @@ $ python3 -m general_navigation --media media/test.mp4
 - [x] PyPi release
 - [x] Example usage
 - [x] Carla Integration
-- [ ] MPC implementation
-- [ ] Visualize MPC reconstructed trajectory
-- [ ] Visualize Steering angle
+- [x] MPC implementation
+- [x] Visualize MPC reconstructed trajectory
+- [x] Visualize Steering angle
 - [ ] Fix scaling issue
 - [ ] Intrinsic matrix as argument
 - [x] Documentation: `mkdocs gh-deploy`

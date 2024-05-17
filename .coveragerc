@@ -1,0 +1,2 @@
+[run]
+omit = general_navigation/diffusion_policy/*, general_navigation/models/gnm/*, general_navigation/models/nomad/*, general_navigation/models/vint/*, general_navigation/carla/helpers.py

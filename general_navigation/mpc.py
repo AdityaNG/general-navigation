@@ -79,7 +79,7 @@ def MPC_run(trajectory, velocity, time_step, WHEEL_BASE, STEERING_RATIO, N):
                 use faster solver offline for cache miss
             - Unsure we're solving using all cores
     """
-    K = 0.0000005  # tuning parameter for the cost function
+    K = 0.00005  # tuning parameter for the cost function
     # K is the inverse agressiveness of the steering input
     # Smaller K values correspond to more aggressive steering
     # Larger K values correspond to less aggressive steering
