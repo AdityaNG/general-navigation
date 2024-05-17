@@ -1,6 +1,6 @@
 # General Navigation
 
-[![PyPI - Downloads](https://img.shields.io/pypi/dd/general-navigation)](https://pypi.org/project/general-navigation/)
+[![PyPI - Downloads](https://img.shields.io/pypi/dm/general_navigation)](https://pypi.org/project/general-navigation/)
 [![PyPI - Version](https://img.shields.io/pypi/v/general-navigation)](https://pypi.org/project/general-navigation/)
 [![codecov](https://codecov.io/gh/AdityaNG/general-navigation/branch/main/graph/badge.svg?token=general-navigation_token_here)](https://codecov.io/gh/AdityaNG/general-navigation)
 [![CI](https://github.com/AdityaNG/general-navigation/actions/workflows/main.yml/badge.svg)](https://github.com/AdityaNG/general-navigation/actions/workflows/main.yml)
