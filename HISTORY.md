@@ -4,6 +4,12 @@ Changelog
 
 (unreleased)
 ------------
+- Docs(README): total downloads badge. [Aditya NG]
+
+
+0.5.0 (2024-05-17)
+------------------
+- Release: version 0.5.0 🚀 [Aditya NG]
 - Test(cli.py): testing cli and its dependencies. [Aditya NG]
 
 
