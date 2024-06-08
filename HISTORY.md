@@ -4,6 +4,16 @@ Changelog
 
 (unreleased)
 ------------
+- Feat(VERSION): increment. [Aditya NG]
+- Feat(general_navigation/mpc.py): tuned for carla, carla demo added.
+  [Aditya NG]
+- Feat(carla): mpc tuning. [Aditya NG]
+- Fix(carla): sim run working (kinda) [Aditya NG]
+
+
+0.5.1 (2024-05-17)
+------------------
+- Release: version 0.5.1 🚀 [Aditya NG]
 - Docs(README): total downloads badge. [Aditya NG]
 
 
