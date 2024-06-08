@@ -95,6 +95,7 @@ def model_step(
         trajectory = naction.copy()
 
         trajectory[:, [0, 1]] = trajectory[:, [1, 0]]
+        # trajectory[:, 0] = -trajectory[:, 0]
 
         return trajectory
 

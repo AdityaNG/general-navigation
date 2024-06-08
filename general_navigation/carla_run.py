@@ -181,6 +181,9 @@ def main():  # pragma: no cover
         trajectory=[
             (0, 0),
         ],
+        trajectory_mpc=[
+            (0, 0),
+        ],
         speed=0.0,
         steer=0.0,
     )
@@ -231,8 +234,21 @@ def main():  # pragma: no cover
                 color=(255, 0, 0),
                 track=True,
             )
+            trajectory_mpc = np.array(gpt_controls.trajectory_mpc)
+            plot_steering_traj(
+                image_vis,
+                trajectory_mpc,
+                color=(0, 255, 0),
+                track=True,
+            )
             image_bev = plot_bev_trajectory(
                 trajectory, image_vis, color=(255, 0, 0)
+            )
+            image_bev_mpc = plot_bev_trajectory(
+                trajectory_mpc, image_vis, color=(0, 255, 0)
+            )
+            image_bev = cv2.addWeighted(
+                image_bev, 0.5, image_bev_mpc, 0.5, 0.0
             )
 
             visual = np.hstack((image_vis, image_bev))

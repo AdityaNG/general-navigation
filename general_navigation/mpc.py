@@ -5,6 +5,7 @@ from scipy.optimize import minimize
 from simple_pid import PID
 
 from general_navigation.common import MAX_STEER, STEERING_RATIO, WHEEL_BASE
+from general_navigation.models.model_utils import interpolate_trajectory
 
 
 class MPC:
@@ -23,12 +24,10 @@ class MPC:
         self.speed_pid.sample_time = self.time_step  # seconds
 
         self.traj_pred = np.zeros((8, 2))
-        self.steering_pred_list = np.zeros(
-            self.horizon,
-        )
         self.last_accel = 0.0
         self.last_update_time = time.time()
         self.steering_pred_list = np.zeros(self.horizon)
+        self.trajectory_list = np.zeros((self.horizon, 2))
 
     def step(self, trajectory, set_speed, current_steering):
         now = time.time()
@@ -44,7 +43,7 @@ class MPC:
         #####################################
         # Lateral
 
-        self.steering_pred_list = MPC_run(
+        self.trajectory_list, self.steering_pred_list = MPC_run(
             self.trajectory.copy(),
             set_speed,
             self.time_step,
@@ -53,6 +52,7 @@ class MPC:
             self.horizon,
             current_steering,
             self.steering_pred_list,
+            self.trajectory_list,
         )
 
         # Autopilot steering command (-1.0, +1.0)
@@ -68,7 +68,7 @@ class MPC:
 
         # Update the last accel
         self.last_accel = accel
-        return accel, steer
+        return accel, steer, self.trajectory_list
 
 
 def MPC_run(
@@ -79,6 +79,7 @@ def MPC_run(
     STEERING_RATIO,
     N,
     current_steering,
+    steering_history,
     result_trajectory,
 ):
     """
@@ -91,17 +92,21 @@ def MPC_run(
                 use faster solver offline for cache miss
             - Unsure we're solving using all cores
     """
-    K = 0.000015  # tuning parameter for the cost function
+    K = 0.0000055  # tuning parameter for the cost function
     # K is the inverse agressiveness of the steering input
     # Smaller K values correspond to more aggressive steering
     # Larger K values correspond to less aggressive steering
 
     try:
         dt = time_step
+        trajectory = interpolate_trajectory(trajectory, samples=10)
         trajectory_interp = traverse_trajectory(
             trajectory.copy(), velocity * dt
         )
+        trajectory_interp = trajectory_interp[:, [1, 0]]
 
+        print("velocity", velocity)
+        print("distance", velocity * dt)
         print("trajectory", trajectory.shape)
         print("trajectory_interp", trajectory_interp.shape)
 
@@ -144,7 +149,8 @@ def MPC_run(
             ]
         )
         # TODO: incorporate current trajectory
-        u0 = np.zeros(N)
+        # u0 = np.zeros(N)
+        u0 = steering_history.copy()
 
         # bounds on the steering angle
         bounds = []
@@ -162,11 +168,21 @@ def MPC_run(
         )
 
         u_opt = res.x
-        result_trajectory = u_opt
+        steering_history = u_opt
+        result_trajectory = np.zeros((N, 4))
+        result_trajectory[0, :] = x0
+        result_trajectory[:, 3] = velocity
+        for i in range(1, N):
+            result_trajectory[i] = bicycle_model(
+                result_trajectory[i - 1], steering_history[i]
+            )
+        result_trajectory = np.array(result_trajectory)
+        result_trajectory = result_trajectory[:, :2]
+        result_trajectory = result_trajectory[:, [1, 0]]
     except Exception as ex:
         print("Error: ", ex)
     finally:
-        return result_trajectory
+        return result_trajectory, steering_history
 
 
 def traverse_trajectory(traj, D):

@@ -51,10 +51,10 @@ class GPTVision:
 
         self.horizon = 6
 
-        self.mpc = MPC(self.speed, 0.035, self.horizon)
+        self.mpc = MPC(self.speed, 0.25, self.horizon)
 
         self.trajectory_history = []
-        self.trajectory_history_size = 4
+        self.trajectory_history_size = 2
 
     def step(
         self,
@@ -65,7 +65,10 @@ class GPTVision:
         frame = cv2.cvtColor(np_frame, cv2.COLOR_BGR2RGB)
         frame = PILImage.fromarray(frame)
         gpt_controls = DroneControls(
-            trajectory=[(0, 0), (0, 0)], speed=0.0, steer=0.0
+            trajectory=[(0, 0), (0, 0)],
+            trajectory_mpc=[(0, 0), (0, 0)],
+            speed=0.0,
+            steer=0.0,
         )
 
         if len(self.context_queue) < self.context_size + 1:
@@ -93,15 +96,18 @@ class GPTVision:
 
             gpt_controls.trajectory = np.mean(
                 np.array(self.trajectory_history), axis=0
-            ).tolist()
+            )
+            gpt_controls.trajectory = gpt_controls.trajectory[2:]
+            gpt_controls.trajectory = gpt_controls.trajectory.tolist()
             gpt_controls.speed = self.speed
 
-            accel, steer = self.mpc.step(
+            accel, steer, traj_mpc = self.mpc.step(
                 np.array(gpt_controls.trajectory),
-                gpt_controls.speed,
+                state.speed_ms(),
                 state.steering_angle,
             )
 
             gpt_controls.steer = steer
+            gpt_controls.trajectory_mpc = traj_mpc
 
         return gpt_controls

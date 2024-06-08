@@ -6,7 +6,7 @@
 [![CI](https://github.com/AdityaNG/general-navigation/actions/workflows/main.yml/badge.svg)](https://github.com/AdityaNG/general-navigation/actions/workflows/main.yml)
 ![GitHub License](https://img.shields.io/github/license/AdityaNG/general-navigation)
 
-![Demo](https://raw.githubusercontent.com/AdityaNG/general-navigation/main/media/demo.gif)
+![Demo](https://raw.githubusercontent.com/AdityaNG/general-navigation/main/media/carla_demo.gif)
 
 General Navigation Models based on GNM, ViNT, NoMaD as a pytorch repo for quick and easy deployment.
 
@@ -72,7 +72,8 @@ $ python3 -m general_navigation.carla_run
 - [x] Example usage
 - [x] Carla Integration
 - [x] MPC implementation
-- [x] Visualize MPC reconstructed trajectory
+- [ ] Visualize MPC reconstructed trajectory
+- [ ] Visualize all of the model's trajectories
 - [x] Visualize Steering angle
 - [ ] Fix scaling issue
 - [ ] Intrinsic matrix as argument

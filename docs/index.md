@@ -6,7 +6,7 @@
 [![CI](https://github.com/AdityaNG/general-navigation/actions/workflows/main.yml/badge.svg)](https://github.com/AdityaNG/general-navigation/actions/workflows/main.yml)
 ![GitHub License](https://img.shields.io/github/license/AdityaNG/general-navigation)
 
-![Demo](https://raw.githubusercontent.com/AdityaNG/general-navigation/main/media/demo.gif)
+![Demo](https://raw.githubusercontent.com/AdityaNG/general-navigation/main/media/media/carla_demo.gif)
 
 General Navigation Models based on GNM, ViNT, NoMaD as a pytorch repo for quick and easy deployment.
 Awesome general_navigation created by AdityaNG.

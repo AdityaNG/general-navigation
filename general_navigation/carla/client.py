@@ -138,7 +138,6 @@ class CarlaClient:
             )
             self.world.constant_velocity_enabled = True
 
-            # TODO: MPC
             steering_angle = controls.steer
 
             print("steering_angle", steering_angle)
