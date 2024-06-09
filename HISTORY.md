@@ -4,6 +4,13 @@ Changelog
 
 (unreleased)
 ------------
+- Docs(README.md): cite. [Aditya NG]
+- Docs(general_navigation/mpc.py): function docs. [Aditya NG]
+
+
+0.6.0 (2024-06-08)
+------------------
+- Release: version 0.6.0 🚀 [Aditya NG]
 - Feat(VERSION): increment. [Aditya NG]
 - Feat(general_navigation/mpc.py): tuned for carla, carla demo added.
   [Aditya NG]
