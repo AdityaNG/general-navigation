@@ -8,8 +8,18 @@
 
 ![Demo](https://raw.githubusercontent.com/AdityaNG/general-navigation/main/media/media/carla_demo.gif)
 
-General Navigation Models based on GNM, ViNT, NoMaD as a pytorch repo for quick and easy deployment.
-Awesome general_navigation created by AdityaNG.
+General Navigation Models based on GNM, ViNT, NoMaD as a pytorch repo installable from pip for quick and easy deployment. This repo provides functionality to load and run the models and use MPC to generate steering commands for your robot. If you find any functionality in this repo useful, consider citing it:
+
+```
+@misc{aditya2024general_navigation,
+  title        = {General Navigation Python Module},
+  author       = {Aditya, NG},
+  howpublished = {\url{https://pypi.org/project/general-navigation/}},
+  version      = {1.0.0},
+  year         = {2024},
+  note         = {Accessed: 2024-06-09}
+}
+```
 
 ## Install it from PyPI
 
