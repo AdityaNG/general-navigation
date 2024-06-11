@@ -1,4 +1,5 @@
 import os
+import textwrap
 from typing import List
 
 import cv2
@@ -13,6 +14,7 @@ from diffusers.schedulers.scheduling_ddpm import DDPMScheduler
 from PIL import Image as PILImage
 from torchvision import transforms
 
+from general_navigation.schema.environment import DroneControls, DroneState
 from general_navigation.visualizing.action_utils import plot_trajs_and_points
 from general_navigation.visualizing.visualize_utils import from_numpy, to_numpy
 
@@ -137,6 +139,15 @@ def unnormalize_data(ndata, stats):
     return data
 
 
+def unnormalize_data_torch(ndata: torch.tensor, stats):
+    device = ndata.device
+    ndata = (ndata + 1) / 2
+    data = ndata * torch.tensor(
+        stats["max"] - stats["min"], device=device
+    ) + torch.tensor(stats["min"], device=device)
+    return data
+
+
 def get_delta(actions):
     # append zeros to first action
     ex_actions = np.concatenate(
@@ -144,6 +155,16 @@ def get_delta(actions):
     )
     delta = ex_actions[:, 1:] - ex_actions[:, :-1]
     return delta
+
+
+def get_action_torch(diffusion_output, action_stats=ACTION_STATS):
+    # diffusion_output: (B, 2*T+1, 1)
+    # return: (B, T-1)
+    ndeltas = diffusion_output
+    ndeltas = ndeltas.reshape(ndeltas.shape[0], -1, 2)
+    ndeltas = unnormalize_data_torch(ndeltas, action_stats)
+    actions = torch.cumsum(ndeltas, dim=1)
+    return actions
 
 
 def get_action(diffusion_output, action_stats=ACTION_STATS):
@@ -764,3 +785,87 @@ def plot_carstate_frame(
     )
 
     return frame_img
+
+
+def print_text_image(
+    img,
+    text,
+    width=50,
+    font_size=0.5,
+    font_thickness=2,
+    text_color=(255, 255, 255),
+    text_color_bg=(0, 0, 0),
+):
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    wrapped_text = textwrap.wrap(text, width=width)
+
+    for i, line in enumerate(wrapped_text):
+        textsize = cv2.getTextSize(line, font, font_size, font_thickness)[0]
+        text_w, text_h = textsize
+
+        gap = textsize[1] + 10
+
+        y = (i + 1) * gap
+        x = 10
+
+        cv2.rectangle(
+            img, (x, y - text_h), (x + text_w, y + text_h), text_color_bg, -1
+        )
+        cv2.putText(
+            img,
+            line,
+            (x, y),
+            font,
+            font_size,
+            text_color,
+            font_thickness,
+            lineType=cv2.LINE_AA,
+        )
+
+
+def generate_visual(
+    drone_state: DroneState, gpt_controls: DroneControls
+) -> np.ndarray:
+    image_raw = np.array(
+        drone_state.image.cv_image(),
+    )
+
+    # # Draw all template trajectories
+    # for index in range(NUM_TEMLATES):
+    #     template_trajectory_3d = select_trajectory_index(
+    #         trajectory_templates, index
+    #     )
+
+    #     color = colors[index]
+    #     plot_steering_traj(
+    #         image, template_trajectory_3d, color=color, track=False
+    #     )
+
+    # print_text_image(visual[0:128, 0:256], "Prompt")
+
+    image_vis = image_raw.copy()
+
+    trajectory = np.array(gpt_controls.trajectory)
+    plot_steering_traj(
+        image_vis,
+        trajectory,
+        color=(255, 0, 0),
+        track=True,
+    )
+    trajectory_mpc = np.array(gpt_controls.trajectory_mpc)
+    plot_steering_traj(
+        image_vis,
+        trajectory_mpc,
+        color=(0, 255, 0),
+        track=True,
+    )
+    image_bev = plot_bev_trajectory(trajectory, image_vis, color=(255, 0, 0))
+    image_bev_mpc = plot_bev_trajectory(
+        trajectory_mpc, image_vis, color=(0, 255, 0)
+    )
+    image_bev = cv2.addWeighted(image_bev, 0.5, image_bev_mpc, 0.5, 0.0)
+
+    visual = np.hstack((image_vis, image_bev))
+    print_text_image(visual, "GNM Controls")
+
+    return visual

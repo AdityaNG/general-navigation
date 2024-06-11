@@ -29,8 +29,9 @@ class MPC:
         self.last_update_time = time.time()
         self.steering_pred_list = np.zeros(self.horizon)
         self.trajectory_list = np.zeros((self.horizon, 2))
-        self.inverse_agressiveness = 0.000075
-        self.interpolate_samples = 0
+        # self.inverse_agressiveness = 0.000075
+        self.inverse_agressiveness = 0.0000075
+        self.interpolate_samples = 8
 
     def step(self, trajectory, set_speed, current_steering):
         now = time.time()
@@ -140,7 +141,10 @@ def mpc_run(
         trajectory_interp = trajectory_interp[:, [1, 0]]
         trajectory_interp = trajectory_interp[0:horizon]
 
-        assert trajectory_interp.shape[0] >= horizon, "Not enough points"
+        assert trajectory_interp.shape[0] >= horizon, (
+            f"Not enough points, expected at least {horizon}, "
+            f"got {trajectory_interp.shape[0]}"
+        )
         #######################################################################
         # define the model
 
@@ -207,7 +211,7 @@ def mpc_run(
             args=(x0, trajectory_interp.copy()),
             method="SLSQP",
             bounds=bounds,
-            options=dict(maxiter=100),
+            options=dict(maxiter=20),
         )
 
         u_opt = res.x

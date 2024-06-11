@@ -1,14 +1,9 @@
 """
-GPT Vision to make Control Decisions
+GPT Vision to make Control Decisions in Carla
 """
 
-import os
-import signal
-import subprocess
-import textwrap
 import time
 import traceback
-from contextlib import contextmanager
 
 import cv2
 import numpy as np
@@ -16,11 +11,10 @@ import torch
 from torch.multiprocessing import Process, Queue
 
 from general_navigation.carla.client import CarlaClient
+from general_navigation.carla.utils import start_carla
+from general_navigation.common import UIRecorder
 from general_navigation.gpt.gpt_vision import GPTVision
-from general_navigation.models.model_utils import (
-    plot_bev_trajectory,
-    plot_steering_traj,
-)
+from general_navigation.models.model_utils import generate_visual
 from general_navigation.schema.environment import DroneControls
 from general_navigation.settings import settings
 
@@ -37,107 +31,6 @@ def async_gpt(gpt_input_q: Queue, gpt_output_q: Queue, gpt: GPTVision):
         except Exception as ex:
             print("Exception while calling GPT", ex)
             traceback.print_exc()
-
-
-@contextmanager
-def start_carla():
-    """
-    Launch Carla using the command
-
-    This function is to be used with the 'with' clause:
-        ```py
-        with start_carla():
-            print("Carla is running")
-        ```
-
-        Once the function exits, carla is to shutdown
-    """
-
-    carla_script_path = os.path.join(
-        settings.ui.CARLA_INSTALL_PATH, "CarlaUE4.sh"
-    )
-    assert os.path.isfile(
-        carla_script_path
-    ), f"File not found: {carla_script_path}"
-
-    command = "CUDA_VISIBLE_DEVICES=0 ./CarlaUE4.sh -quality-level=Low -prefernvidia -ResX=10 -ResY=10"  # noqa
-    try:
-        # Start the Carla process
-        process = subprocess.Popen(
-            command,
-            shell=True,
-            cwd=settings.ui.CARLA_INSTALL_PATH,
-            preexec_fn=os.setsid,
-        )
-        time.sleep(5)
-        yield process
-    finally:
-        # Ensure the Carla process is terminated upon exiting the context
-        # Note: it appears that carla requires two of these to exit
-        os.killpg(os.getpgid(process.pid), signal.SIGTERM)
-        time.sleep(1)
-        os.killpg(os.getpgid(process.pid), signal.SIGTERM)
-
-        process.wait()  # Wait for the process to properly terminate
-
-
-class UIRecorder:
-
-    def __init__(self) -> None:
-        now = time.strftime("%Y-%m-%d--%H-%M-%S")
-        self.path = os.path.join("test_media", f"DriveLLaVA-{now}.mp4")
-        self.enabled = settings.ui.RECORDING_ENABLED
-        self.fps = 30
-        self.cap = None
-
-    def write(self, image) -> None:
-        if self.cap is None:
-            size = image.shape[:2]
-            self.cap = cv2.VideoWriter(
-                self.path, cv2.VideoWriter_fourcc(*"MJPG"), self.fps, size
-            )
-
-        self.cap.write(image)
-
-    def __del__(self):
-        if self.cap is not None:
-            self.cap.release()
-
-
-def print_text_image(
-    img,
-    text,
-    width=50,
-    font_size=0.5,
-    font_thickness=2,
-    text_color=(255, 255, 255),
-    text_color_bg=(0, 0, 0),
-):
-    font = cv2.FONT_HERSHEY_SIMPLEX
-    wrapped_text = textwrap.wrap(text, width=width)
-
-    for i, line in enumerate(wrapped_text):
-        textsize = cv2.getTextSize(line, font, font_size, font_thickness)[0]
-        text_w, text_h = textsize
-
-        gap = textsize[1] + 10
-
-        y = (i + 1) * gap
-        x = 10
-
-        cv2.rectangle(
-            img, (x, y - text_h), (x + text_w, y + text_h), text_color_bg, -1
-        )
-        cv2.putText(
-            img,
-            line,
-            (x, y),
-            font,
-            font_size,
-            text_color,
-            font_thickness,
-            lineType=cv2.LINE_AA,
-        )
 
 
 def select_trajectory_index(trajectory_templates, trajectory_index):
@@ -194,24 +87,6 @@ def main():  # pragma: no cover
             client.game_loop()
 
             drone_state = client.get_car_state(default=drone_state)
-            image_raw = np.array(
-                drone_state.image.cv_image(),
-            )
-
-            # # Draw all template trajectories
-            # for index in range(NUM_TEMLATES):
-            #     template_trajectory_3d = select_trajectory_index(
-            #         trajectory_templates, index
-            #     )
-
-            #     color = colors[index]
-            #     plot_steering_traj(
-            #         image, template_trajectory_3d, color=color, track=False
-            #     )
-
-            # print_text_image(visual[0:128, 0:256], "Prompt")
-
-            image_vis = image_raw.copy()
 
             if gpt_input_q.empty():
                 data = drone_state
@@ -227,32 +102,7 @@ def main():  # pragma: no cover
                 client.set_car_controls(gpt_controls)
                 last_update = gpt_controls.timestamp
 
-            trajectory = np.array(gpt_controls.trajectory)
-            plot_steering_traj(
-                image_vis,
-                trajectory,
-                color=(255, 0, 0),
-                track=True,
-            )
-            trajectory_mpc = np.array(gpt_controls.trajectory_mpc)
-            plot_steering_traj(
-                image_vis,
-                trajectory_mpc,
-                color=(0, 255, 0),
-                track=True,
-            )
-            image_bev = plot_bev_trajectory(
-                trajectory, image_vis, color=(255, 0, 0)
-            )
-            image_bev_mpc = plot_bev_trajectory(
-                trajectory_mpc, image_vis, color=(0, 255, 0)
-            )
-            image_bev = cv2.addWeighted(
-                image_bev, 0.5, image_bev_mpc, 0.5, 0.0
-            )
-
-            visual = np.hstack((image_vis, image_bev))
-            print_text_image(visual, "GNM Controls")
+            visual = generate_visual(drone_state, gpt_controls)
 
             cv2.imshow("General Navigation", visual)
             rec.write(visual)
