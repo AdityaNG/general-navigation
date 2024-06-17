@@ -4,6 +4,13 @@ Changelog
 
 (unreleased)
 ------------
+- Version increment. [Aditya NG]
+- Feat(carla_rl.py): reinforcement learning. [Aditya NG]
+
+
+1.0.0 (2024-06-09)
+------------------
+- Release: version 1.0.0 🚀 [Aditya NG]
 - Docs(README.md): cite. [Aditya NG]
 - Docs(general_navigation/mpc.py): function docs. [Aditya NG]
 
