@@ -1,6 +1,6 @@
 import os
 import textwrap
-from typing import List
+from typing import List, Optional, Tuple
 
 import cv2
 import matplotlib.pyplot as plt
@@ -21,6 +21,90 @@ from general_navigation.visualizing.visualize_utils import from_numpy, to_numpy
 MAX_V = 1.0
 MAX_W = 1.0
 RATE = 10.0
+
+
+def print_text_image(
+    img,
+    text,
+    width=50,
+    font_size=0.5,
+    font_thickness=2,
+    text_color=(255, 255, 255),
+    text_color_bg=(0, 0, 0),
+):
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    wrapped_text = textwrap.wrap(text, width=width)
+
+    for i, line in enumerate(wrapped_text):
+        textsize = cv2.getTextSize(line, font, font_size, font_thickness)[0]
+        text_w, text_h = textsize
+
+        gap = textsize[1] + 10
+
+        y = (i + 1) * gap
+        x = 10
+
+        cv2.rectangle(
+            img, (x, y - text_h), (x + text_w, y + text_h), text_color_bg, -1
+        )
+        cv2.putText(
+            img,
+            line,
+            (x, y),
+            font,
+            font_size,
+            text_color,
+            font_thickness,
+            lineType=cv2.LINE_AA,
+        )
+
+
+def generate_visual(
+    drone_state: DroneState, gpt_controls: DroneControls
+) -> np.ndarray:
+    image_raw = np.array(
+        drone_state.image.cv_image(),
+    )
+
+    # # Draw all template trajectories
+    # for index in range(NUM_TEMLATES):
+    #     template_trajectory_3d = select_trajectory_index(
+    #         trajectory_templates, index
+    #     )
+
+    #     color = colors[index]
+    #     plot_steering_traj(
+    #         image, template_trajectory_3d, color=color, track=False
+    #     )
+
+    # print_text_image(visual[0:128, 0:256], "Prompt")
+
+    image_vis = image_raw.copy()
+
+    trajectory = np.array(gpt_controls.trajectory)
+    plot_steering_traj(
+        image_vis,
+        trajectory,
+        color=(255, 0, 0),
+        track=True,
+    )
+    trajectory_mpc = np.array(gpt_controls.trajectory_mpc)
+    plot_steering_traj(
+        image_vis,
+        trajectory_mpc,
+        color=(0, 255, 0),
+        track=True,
+    )
+    image_bev = plot_bev_trajectory(trajectory, image_vis, color=(255, 0, 0))
+    image_bev_mpc = plot_bev_trajectory(
+        trajectory_mpc, image_vis, color=(0, 255, 0)
+    )
+    image_bev = cv2.addWeighted(image_bev, 0.5, image_bev_mpc, 0.5, 0.0)
+
+    visual = np.hstack((image_vis, image_bev))
+    print_text_image(visual, "GNM Controls")
+
+    return visual
 
 
 def model_step(
@@ -461,7 +545,20 @@ def transform_images(
     return torch.cat(transf_imgs, dim=1)
 
 
-def interpolate_trajectory(trajectory, samples=1):
+def interpolate_trajectory(
+    trajectory: np.ndarray,
+    samples: int = 1,
+) -> np.ndarray:
+    """
+    Interpolates the trajectory (N, 2) to (M, 2)
+    Where M = N*(S+1)+1
+
+    :param trajectory: (N,2) numpy trajectory
+    :type trajectory: np.ndarray
+    :param samples: number of samples
+    :type samples: int
+    :returns: (M,2) interpolated numpy trajectory
+    """
     # Calculate the number of segments
     num_segments = trajectory.shape[0] - 1
 
@@ -482,101 +579,197 @@ def interpolate_trajectory(trajectory, samples=1):
     return interpolated_trajectory
 
 
+def estimate_intrinsics(
+    fov_x: float,  # degrees
+    fov_y: float,  # degrees
+    height: int,  # pixels
+    width: int,  # pixels
+) -> np.ndarray:
+    """
+    The intrinsic matrix can be extimated from the FOV and image dimensions
+
+    :param fov_x: FOV on x axis in degrees
+    :type fov_x: float
+    :param fov_y: FOV on y axis in degrees
+    :type fov_y: float
+    :param height: Height in pixels
+    :type height: int
+    :param width: Width in pixels
+    :type width: int
+    :returns: (3,3) intrinsic matrix
+    """
+    c_x = width / 2.0
+    c_y = height / 2.0
+    f_x = c_x / np.tan(fov_x / 2.0)
+    f_y = c_y / np.tan(fov_y / 2.0)
+
+    intrinsic_matrix = np.array(
+        [
+            [f_x, 0, c_x],
+            [0, f_y, c_y],
+            [0, 0, 1],
+        ],
+        dtype=np.float16,
+    )
+
+    return intrinsic_matrix
+
+
+def project_world_to_image(
+    trajectory_3D: np.ndarray,
+    intrinsic_matrix: np.ndarray,
+    extrinsic_matrix: np.ndarray,
+) -> np.ndarray:
+    """
+    Takes an (N,3) list of 3D points
+    intrinsic_matrix is (3,3)
+    Returns an (N,3) list of 2D points on the camera plane
+
+    :param trajectory_3D: (N,3) list of 3D points
+    :type trajectory_3D: np.ndarray
+    :param intrinsic_matrix: (3,3) intrinsics
+    :type intrinsic_matrix: np.ndarray
+    :param extrinsic_matrix: offsets to adjust the trajectory by
+    :type extrinsic_matrix: np.ndarray
+    :returns: (N,3) list of 2D points on the camera plane
+    """
+    # trajectory is (N, 3)
+    # trajectory_3D_homo is (N, 4)
+    # extrinsic_matrix is (4, 4)
+    trajectory_3D_homo = np.array(
+        [
+            trajectory_3D[:, 0],
+            trajectory_3D[:, 1],
+            trajectory_3D[:, 2],
+            np.ones_like(trajectory_3D[:, 0]),
+        ]
+    ).T
+    # intrinsics_homo is (3, 4)
+    intrinsics_homo = np.hstack((intrinsic_matrix, np.zeros((3, 1))))
+
+    # trajectory_2D_homo is (N, 3)
+    trajectory_2D_homo = (
+        intrinsics_homo @ extrinsic_matrix @ trajectory_3D_homo.T
+    ).T
+    # trajectory_2D is (N, 2)
+    trajectory_2D = np.array(
+        [
+            trajectory_2D_homo[:, 0] / trajectory_2D_homo[:, 2],
+            trajectory_2D_homo[:, 1] / trajectory_2D_homo[:, 2],
+        ]
+    ).T
+
+    return trajectory_2D
+
+
 def plot_steering_traj(
-    frame_center,
-    trajectory,
-    color=(255, 0, 0),
-    intrinsic_matrix=None,
-    DistCoef=None,
-    offsets=[0.0, -1.2, -10.0],
-    method="add_weighted",
-    track=True,
-    samples=10,
-):
+    frame_img: np.ndarray,
+    trajectory: np.ndarray,
+    color: Tuple[int, int, int] = (255, 0, 0),
+    intrinsic_matrix: Optional[np.ndarray] = None,
+    offsets: Tuple[float, float, float] = [0.0, 5.0, 3.0],
+    method: str = "add_weighted",
+    track: bool = True,
+    line: bool = True,
+    track_width: float = 4.5,
+    samples: int = 10,
+    thickness: int = 2,
+    fov_x: float = 60,
+    fov_y: float = 60,
+) -> np.ndarray:
+    """
+    Coordinate Frames:
+        3D:
+            x: horizontal plane
+            y: vertical into the ground
+            z: depth into the camera
+        2D Image:
+            px: x axis
+            py: y axis
+        2D Trajectory:
+            xt -> x
+            yt -> z
+            height -> y
+
+      Plots a trajectory onto a given frame image.
+    """
     assert method in ("overlay", "mask", "add_weighted")
 
-    h, w = frame_center.shape[:2]
+    h, w = frame_img.shape[:2]
+
+    if intrinsic_matrix is None:
+        intrinsic_matrix = estimate_intrinsics(fov_x, fov_y, h, w)
 
     trajectory = interpolate_trajectory(trajectory, samples=samples)
 
-    if intrinsic_matrix is None:
-        # intrinsic_matrix = np.array([
-        #     [525.5030,         0,    333.4724],
-        #     [0,         531.1660,    297.5747],
-        #     [0,              0,    1.0],
-        # ])
-        intrinsic_matrix = np.array(
-            [
-                [525.5030, 0, w / 2],
-                [0, 531.1660, h / 2],
-                [0, 0, 1.0],
-            ]
-        )
-    if DistCoef is None:
-        DistCoef = np.array(
-            [
-                0.0177,
-                3.8938e-04,  # Tangential Distortion
-                -0.1533,
-                0.4539,
-                -0.6398,  # Radial Distortion
-            ]
-        )
-    newcameramtx, roi = cv2.getOptimalNewCameraMatrix(
-        intrinsic_matrix, DistCoef, (w, h), 1, (w, h)
+    # trajectory_3D is (N,3)
+    trajectory_3D = np.array(
+        [
+            -trajectory[:, 0],
+            np.zeros_like(trajectory[:, 0]),
+            trajectory[:, 1],
+        ]
+    ).T
+
+    # trajectory_3D = np.concatenate(
+    #     (
+    #         [[0, 0, 0], ],
+    #         trajectory_3D
+    #     ),
+    #     axis=0
+    # )
+
+    behind_cam = trajectory_3D[:, 2] - offsets[2] < 0.0
+
+    trajectory_3D = trajectory_3D[~behind_cam]
+
+    extrinsics = np.array(
+        [
+            [1, 0, 0, -offsets[0]],
+            [0, 1, 0, -offsets[1]],
+            [0, 0, 1, -offsets[2]],
+            [0, 0, 0, 1],
+        ]
     )
-    homo_cam_mat = np.hstack((intrinsic_matrix, np.zeros((3, 1))))
 
-    # rot = trajectory[0][:3,:3]
-    # rot = np.eye(3,3)
-    prev_point = None
-    prev_point_3D = None
-    rect_frame = np.zeros_like(frame_center)
+    trajectory_2D = project_world_to_image(
+        trajectory_3D, intrinsic_matrix, extrinsics
+    )
 
-    for trajectory_point in trajectory:
-        p4d = np.ones((4, 1))
-        p3d = np.array(
-            [
-                trajectory_point[0] * 1 - offsets[0],
-                # trajectory_point[1] * 1 - offsets[1],
-                -offsets[1],
-                trajectory_point[1] * 1 - offsets[2],
-            ]
-        ).reshape((3, 1))
-        # p3d = np.linalg.inv(rot) @ p3d
-        p4d[:3, :] = p3d
+    # Filter out outliers
+    trajectory_2D = trajectory_2D.astype(np.int16)
 
-        p2d = (homo_cam_mat) @ p4d
-        if (
-            p2d[2][0] != 0.0
-            and not np.isnan(p2d).any()
-            and not np.isinf(p2d).any()
-        ):
-            px, py = int(p2d[0][0] / p2d[2][0]), int(p2d[1][0] / p2d[2][0])
-            # frame_center = cv2.circle(frame_center, (px, py), 2, color, -1)
-            if prev_point is not None:
-                px_p, py_p = prev_point
-                dist = ((px_p - px) ** 2 + (py_p - py) ** 2) ** 0.5
-                if dist < 20:
-                    if track:
-                        rect_coords_3D = get_rect_coords_3D(p4d, prev_point_3D)
-                        rect_coords = convert_3D_points_to_2D(
-                            rect_coords_3D, homo_cam_mat
-                        )
-                        rect_frame = cv2.fillPoly(
-                            rect_frame, pts=[rect_coords], color=color
-                        )
+    rect_frame = np.zeros_like(frame_img)
 
-                    frame_center = cv2.line(
-                        frame_center, (px_p, py_p), (px, py), color, 2
-                    )
-                    # break
+    for point_index in range(1, trajectory_2D.shape[0]):
+        px, py = trajectory_2D[point_index]
+        px_p, py_p = trajectory_2D[point_index - 1]
+        point_3D = trajectory_3D[point_index]
+        prev_point_3D = trajectory_3D[point_index - 1]
 
-            prev_point = (px, py)
-            prev_point_3D = p4d.copy()
-        else:
-            prev_point = None
-            prev_point_3D = None
+        in_range = px_p in range(0, w) and py_p in range(0, h)
+
+        if track and in_range:
+            rect_coords_3D = get_rect_coords_3D(
+                point_3D, prev_point_3D, track_width
+            )
+            behind_cam_poly = rect_coords_3D[:, 2] - offsets[2] < 0.0
+            if behind_cam_poly.sum() == 0:
+                rect_coords = project_world_to_image(
+                    rect_coords_3D, intrinsic_matrix, extrinsics
+                )
+                rect_coords = rect_coords.astype(np.int32)
+                rect_frame = cv2.fillPoly(
+                    rect_frame, pts=[rect_coords], color=color
+                )
+
+        if line and in_range:
+            frame_img = cv2.line(
+                frame_img, (px_p, py_p), (px, py), color, thickness
+            )
+            rect_frame = cv2.line(
+                rect_frame, (px_p, py_p), (px, py), color, thickness
+            )
 
     if method == "mask":
         mask = np.logical_and(
@@ -584,25 +777,30 @@ def plot_steering_traj(
             rect_frame[:, :, 1] == color[1],
             rect_frame[:, :, 2] == color[2],
         )
-        frame_center[mask] = color
+        frame_img[mask] = color
     elif method == "overlay":
-        frame_center += (0.2 * rect_frame).astype(np.uint8)
+        frame_img += (0.2 * rect_frame).astype(np.uint8)
     elif method == "add_weighted":
-        cv2.addWeighted(frame_center, 1.0, rect_frame, 0.2, 0.0, frame_center)
-    return frame_center
+        cv2.addWeighted(frame_img, 1.0, rect_frame, 0.5, 0.0, frame_img)
+    return frame_img
 
 
-def plot_bev_trajectory(trajectory, frame_center, color=(0, 255, 0)):
-    WIDTH, HEIGHT = frame_center.shape[1], frame_center.shape[0]
+def plot_bev_trajectory(
+    trajectory: np.ndarray,
+    frame_img: np.ndarray,
+    color: Tuple[int, int, int] = (0, 255, 0),
+    thickness: int = 2,
+    grid_range: float = 20,  # meters
+):
+    WIDTH, HEIGHT = frame_img.shape[1], frame_img.shape[0]
     traj_plot = np.ones((HEIGHT, WIDTH, 3), dtype=np.uint8) * 255
 
     Z = trajectory[:, 1]
     X = trajectory[:, 0]
 
-    RAN = 20.0
-    X_min, X_max = -RAN, RAN
+    X_min, X_max = -grid_range, grid_range
     # Z_min, Z_max = -RAN, RAN
-    Z_min, Z_max = -0.1 * RAN, RAN
+    Z_min, Z_max = -0.1 * grid_range, grid_range
     X = (X - X_min) / (X_max - X_min)
     Z = (Z - Z_min) / (Z_max - Z_min)
 
@@ -619,33 +817,36 @@ def plot_bev_trajectory(trajectory, frame_center, color=(0, 255, 0)):
             round(np.clip((Z[traj_index - 1] * (HEIGHT - 1)), -1, HEIGHT + 1))
         )
 
-        if u < 0 or u >= WIDTH or v < 0 or v >= HEIGHT:
+        if u not in range(WIDTH) or v not in range(HEIGHT):
             continue
 
-        traj_plot = cv2.circle(traj_plot, (u, v), 2, color, -1)
-        traj_plot = cv2.line(traj_plot, (u_p, v_p), (u, v), color, 2)
+        traj_plot = cv2.circle(traj_plot, (u, v), thickness, color, -1)
+        traj_plot = cv2.line(traj_plot, (u_p, v_p), (u, v), color, thickness)
 
     traj_plot = cv2.flip(traj_plot, 0)
     return traj_plot
 
 
-def get_rect_coords_3D(Pi, Pj, width=1.5):
-    x_i, y_i = Pi[0, 0], Pi[2, 0]
-    x_j, y_j = Pj[0, 0], Pj[2, 0]
+def get_rect_coords_3D(Pi: np.ndarray, Pj: np.ndarray, width: float):
+    # Pi = Pi.reshape(4, 1)
+    # Pj = Pj.reshape(4, 1)
+    x_i, y_i = Pi[0], Pi[2]
+    x_j, y_j = Pj[0], Pj[2]
     points_2D = get_rect_coords(x_i, y_i, x_j, y_j, width)
     points_3D = []
     for index in range(points_2D.shape[0]):
         # point_2D = points_2D[index]
         point_3D = Pi.copy()
-        point_3D[0, 0] = points_2D[index, 0]
-        point_3D[2, 0] = points_2D[index, 1]
+        point_3D[0] = points_2D[index, 0]
+        point_3D[2] = points_2D[index, 1]
 
         points_3D.append(point_3D)
 
-    return np.array(points_3D)
+    points_3D = np.array(points_3D)
+    return points_3D
 
 
-def get_rect_coords(x_i, y_i, x_j, y_j, width=2.83972):
+def get_rect_coords(x_i, y_i, x_j, y_j, width: float):
     Pi = np.array([x_i, y_i])
     Pj = np.array([x_j, y_j])
     height = np.linalg.norm(Pi - Pj)
@@ -688,20 +889,6 @@ def get_rect_coords(x_i, y_i, x_j, y_j, width=2.83972):
         ]
     )
     return points
-
-
-def convert_3D_points_to_2D(points_3D, homo_cam_mat):
-    points_2D = []
-    for index in range(points_3D.shape[0]):
-        p4d = points_3D[index]
-        p2d = (homo_cam_mat) @ p4d
-        px, py = 0, 0
-        if p2d[2][0] != 0.0:
-            px, py = int(p2d[0][0] / p2d[2][0]), int(p2d[1][0] / p2d[2][0])
-
-        points_2D.append([px, py])
-
-    return np.array(points_2D)
 
 
 def rotate_image(image, angle):
@@ -785,87 +972,3 @@ def plot_carstate_frame(
     )
 
     return frame_img
-
-
-def print_text_image(
-    img,
-    text,
-    width=50,
-    font_size=0.5,
-    font_thickness=2,
-    text_color=(255, 255, 255),
-    text_color_bg=(0, 0, 0),
-):
-    font = cv2.FONT_HERSHEY_SIMPLEX
-    wrapped_text = textwrap.wrap(text, width=width)
-
-    for i, line in enumerate(wrapped_text):
-        textsize = cv2.getTextSize(line, font, font_size, font_thickness)[0]
-        text_w, text_h = textsize
-
-        gap = textsize[1] + 10
-
-        y = (i + 1) * gap
-        x = 10
-
-        cv2.rectangle(
-            img, (x, y - text_h), (x + text_w, y + text_h), text_color_bg, -1
-        )
-        cv2.putText(
-            img,
-            line,
-            (x, y),
-            font,
-            font_size,
-            text_color,
-            font_thickness,
-            lineType=cv2.LINE_AA,
-        )
-
-
-def generate_visual(
-    drone_state: DroneState, gpt_controls: DroneControls
-) -> np.ndarray:
-    image_raw = np.array(
-        drone_state.image.cv_image(),
-    )
-
-    # # Draw all template trajectories
-    # for index in range(NUM_TEMLATES):
-    #     template_trajectory_3d = select_trajectory_index(
-    #         trajectory_templates, index
-    #     )
-
-    #     color = colors[index]
-    #     plot_steering_traj(
-    #         image, template_trajectory_3d, color=color, track=False
-    #     )
-
-    # print_text_image(visual[0:128, 0:256], "Prompt")
-
-    image_vis = image_raw.copy()
-
-    trajectory = np.array(gpt_controls.trajectory)
-    plot_steering_traj(
-        image_vis,
-        trajectory,
-        color=(255, 0, 0),
-        track=True,
-    )
-    trajectory_mpc = np.array(gpt_controls.trajectory_mpc)
-    plot_steering_traj(
-        image_vis,
-        trajectory_mpc,
-        color=(0, 255, 0),
-        track=True,
-    )
-    image_bev = plot_bev_trajectory(trajectory, image_vis, color=(255, 0, 0))
-    image_bev_mpc = plot_bev_trajectory(
-        trajectory_mpc, image_vis, color=(0, 255, 0)
-    )
-    image_bev = cv2.addWeighted(image_bev, 0.5, image_bev_mpc, 0.5, 0.0)
-
-    visual = np.hstack((image_vis, image_bev))
-    print_text_image(visual, "GNM Controls")
-
-    return visual
