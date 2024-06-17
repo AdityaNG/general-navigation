@@ -4,6 +4,13 @@ Changelog
 
 (unreleased)
 ------------
+- Feat(general_navigation/models/model_utils.py): track plotting.
+  [Aditya NG]
+
+
+1.1.0 (2024-06-17)
+------------------
+- Release: version 1.1.0 🚀 [Aditya NG]
 - Version increment. [Aditya NG]
 - Feat(carla_rl.py): reinforcement learning. [Aditya NG]
 
